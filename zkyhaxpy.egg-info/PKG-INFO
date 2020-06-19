@@ -1,13 +1,13 @@
 Metadata-Version: 2.1
 Name: zkyhaxpy
-Version: 0.2.2
+Version: 0.2.3
 Summary: A swiss-knife package for python
 Home-page: https://github.com/surasakcho/zkyhaxpy
 Author: Surasak Choedpasuporn
 Author-email: surasak.cho@gmail.com
 License: UNKNOWN
-Description: This is zkyhaxpy package.
-        zkyhax is a python package for personal usage.
+Description: This is zkyhax-py package.
+        zkyhax-py is a python package for personal usage.
         It provides a lot of useful tools for working as data scientist.
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
