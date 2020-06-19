@@ -16,7 +16,3 @@ def wait_mem(max_mem_pct_used=60, refresh_mins=5, timeout_mins=180):
         if mem_pct_used <= max_mem_pct_used:
             print('Continue...')
         assert(waiting_mins < timeout_mins)
-
-
-def update_pierpy():
-    os.system(r'pip install -e "D:\!PIER\DS-codes\pierpy"')
