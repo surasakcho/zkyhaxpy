@@ -6,7 +6,7 @@ import shutil
 import pandas as pd
 from tqdm.notebook import tqdm
 from collections import namedtuple
-
+from zipfile import ZipFile 
 
 def create_folders(path):
     
@@ -167,3 +167,99 @@ def check_files(folder, file_type='parquet', same_columns=True):
         assert(False)
 
     return list_error_files
+
+
+ 
+def zip_files(list_file_paths, out_zip_path): 
+    '''
+
+    Zipping all files in the given list of file paths.
+
+    Parameters
+    ----------
+    list_file_paths: Array-like
+        A list of file paths to be zipped.
+        
+    out_zip_path: str
+        A string of output zip path
+
+    Returns
+    -------
+    None
+
+	'''
+
+    # printing the list of all files to be zipped 
+    if len(list_file_paths) == 0:
+        print('No file path given. Exit the process.')
+        return
+    elif len(list_file_paths) <= 20:
+        print('Following files will be zipped.')
+        for filepath in list_file_paths:
+            print(filepath)    
+    else :
+        print(f'Total of {len(list_file_paths)} files will be zipped.') 
+        
+  
+    # writing files to a zipfile 
+    with ZipFile(out_zip_path,'w') as zip: 
+        # writing each file one by one 
+        for filepath in list_file_paths: 
+            zip.write(filepath, os.path.basename(filepath)) 
+  
+    print(f'All files have been zipped to {out_zip_path} successfully!')         
+  
+ 
+def zip_folder(folder, out_zip_path): 
+    '''
+
+    Zipping all files in the given folder.
+
+    Parameters
+    ----------
+    folder: str
+        A string of folder path
+        
+    out_zip_path: str
+        A string of output zip path
+
+    Returns
+    -------
+    None
+
+	'''
+
+    list_file_paths = list_files_re(folder)
+    # printing the list of all files to be zipped 
+    
+    if len(list_file_paths) > 0:
+            
+        # printing the list of all files to be zipped        
+        if len(list_file_paths) <= 20:
+            print('Following files will be zipped.')
+            for filepath in list_file_paths:
+                print(filepath)    
+        else :
+            print(f'Total of {len(list_file_paths)} files will be zipped.') 
+            
+    
+        # writing files to a zipfile 
+        with ZipFile(out_zip_path,'w') as zip: 
+            # writing each file one by one 
+            for filepath in list_file_paths: 
+                zip.write(filepath, filepath.replace(os.path.dirname(folder), ''))
+    
+        print(f'All files have been zipped to {out_zip_path} successfully!')         
+    
+    else:
+        print(f'No file in folder {folder}')
+  
+
+def unzip(zip_path, out_folder):
+    # opening the zip file in READ mode 
+    with ZipFile(zip_path, 'r') as zip:    
+        # extracting all the files 
+        print('Extracting all the files now...')                 
+        create_folders(out_folder)
+        zip.extractall(path=out_folder)
+        print(f'{zip_path} has been extracted to {out_folder} successfully.') 

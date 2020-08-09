@@ -1,8 +1,11 @@
 README.md
 setup.py
 zkyhaxpy/__init__.py
+zkyhaxpy/colab_tools.py
+zkyhaxpy/console_tools.py
 zkyhaxpy/dttm_tools.py
 zkyhaxpy/ftp_tools.py
+zkyhaxpy/img_tools.py
 zkyhaxpy/io_tools.py
 zkyhaxpy/log_tools.py
 zkyhaxpy/ml_tools.py

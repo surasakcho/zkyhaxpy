@@ -1,0 +1,11 @@
+1) activate crop env
+
+2) cd to 'D:\!PIER\DS-codes\zkyhaxpy'
+
+3) remove old files in 'D:\!PIER\DS-codes\zkyhaxpy\dist'
+
+4) run following command to compile codes.
+python setup.py sdist bdist_wheel
+
+5) run following command to upload to pypi.org and log in with user:surasak.cho
+python -m twine upload --repository pypi dist/*
