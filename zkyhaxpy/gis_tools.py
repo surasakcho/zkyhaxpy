@@ -22,7 +22,7 @@ import skimage
 from skimage import filters, exposure
 from skimage.io import imsave
 
-import matplotlib.pyplt as plt
+import matplotlib.pyplot as plt
 
 np.seterr(divide='ignore', invalid='ignore')
 
