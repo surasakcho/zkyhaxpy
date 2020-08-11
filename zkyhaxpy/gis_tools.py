@@ -22,6 +22,7 @@ import skimage
 from skimage import filters, exposure
 from skimage.io import imsave
 
+import matplotlib.pyplt as plt
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -61,25 +62,52 @@ def extract_bits(img, position):
 
 
 
-def raster_reproject(src_path, dest_path, reference_path):
+def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', driver_nm='GTiff'):
+    '''
+
+    Reproject a source raster into a destination raster with reference raster's transform.
+    
+    Parameters
+    ----------
+    src_path: str
+        A path of the source raster
+        
+    dest_path: str
+        A path of the destination raster to be saved
+        
+    ref_path: str
+        A path of the reference raster
+        
+    dest_dtype: str
+        Data type of the destination raster.
+        
+    Returns
+    -------
+    None
+
+	'''  
+  
 
     inputfile = src_path
     input = gdal.Open(inputfile, gdalconst.GA_ReadOnly)
     inputProj = input.GetProjection()
     inputTrans = input.GetGeoTransform()
 
-    referencefile = reference_path
-    reference = gdal.Open(referencefile, gdalconst.GA_ReadOnly)
+    
+    reference = gdal.Open(ref_path, gdalconst.GA_ReadOnly)
     referenceProj = reference.GetProjection()
     referenceTrans = reference.GetGeoTransform()
-    bandreference = reference.GetRasterBand(1)    
+    
     x = reference.RasterXSize 
     y = reference.RasterYSize
 
-
-    outputfile = dest_path
-    driver= gdal.GetDriverByName('GTiff')
-    output = driver.Create(outputfile,x,y,1,bandreference.DataType)
+    if dest_dtype=='src':
+        dest_dtype=input.GetRasterBand(1).DataType
+    elif dest_dtype=='ref':
+        dest_dtype=reference.GetRasterBand(1).DataType
+    
+    driver= gdal.GetDriverByName(driver_nm)
+    output = driver.Create(dest_path, x, y, 1, dest_dtype)
     output.SetGeoTransform(referenceTrans)
     output.SetProjection(referenceProj)
 
@@ -209,11 +237,45 @@ def raster_to_jpg(output_path, raster=None, raster_path=None, save_im=None, band
     imsave(output_path, save_im)    
 
 
-def show_raster(raster, min_pctl=2, max_pctl=98):
-    #Code by PongporC 23/Jan/2020
-    vmin, vmax = np.nanpercentile(raster, (min_pctl, max_pctl))    
-    plt.imshow(raster_ndvi[0], vmin=vmin, vmax=vmax)
+def show_raster(raster, band=1, min_pctl=2, max_pctl=98, figsize=(10, 10), cmap=None, show_cbar=False):
+    '''
+
+    Display raster as a matplotlib's plot.
+
+    Parameters
+    ----------
+    raster: str or array-like
+        A path of raster or an array of raster  
+    band: int
+        Band ID to be shown in case a path of raster is given.
+    min_pctl (max_pctl): int
+        Min (Max) percentile to be filterred out.
+    figsize: tuple (h, w)
+        A tuple for plot figure size (Height, Width)
+    show_cbar: boolean
+        If True, show cbar
+
+    Returns
+    -------
+    None
+
+	'''
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
     
+    
+    if type(raster) == np.ndarray:
+        arr_raster = raster
+    else:
+        with rasterio.open(raster) as raster:
+            arr_raster = raster.read(band)    
+        
+    vmin, vmax = np.nanpercentile(arr_raster, (min_pctl, max_pctl))    
+    im = ax.imshow(arr_raster, vmin=vmin, vmax=vmax, cmap=cmap)
+    
+    if show_cbar==True:
+        cbar = ax.figure.colorbar(im)
+    
+
 
 
 def split_polygon(multi_polygon):
@@ -226,24 +288,5 @@ def split_polygon(multi_polygon):
 
 
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     
