@@ -263,3 +263,15 @@ def unzip(zip_path, out_folder):
         create_folders(out_folder)
         zip.extractall(path=out_folder)
         print(f'{zip_path} has been extracted to {out_folder} successfully.') 
+        
+
+
+
+def filepaths_to_df(list_files):
+    df_list_files = pd.DataFrame(list_files, columns=['file_path'])
+    df_list_files['file_nm'] = df_list_files['file_path'].apply(lambda path : os.path.basename(path))
+    df_list_files['folder_nm'] = df_list_files['file_path'].apply(lambda path : os.path.basename(os.path.dirname(path)))
+    df_list_files['file_ext'] = df_list_files['file_nm'].apply(lambda file_nm : file_nm.split('.')[-1])
+    
+    return df_list_files
+    
