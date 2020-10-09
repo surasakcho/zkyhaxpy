@@ -1,6 +1,6 @@
 1) activate crop env
 
-2) cd to 'D:\!PIER\DS-codes\zkyhaxpy'
+2) cd 'D:\!PIER\DS-codes\zkyhaxpy'
 
 3) remove old files in 'D:\!PIER\DS-codes\zkyhaxpy\dist'
 

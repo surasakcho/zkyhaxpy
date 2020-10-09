@@ -1,22 +1,27 @@
 
 
 import multiprocessing
+        
 
 
-f=open(OUTPUT_LOG, "a+")
-f.write('file_name,action,time\n')
-f.close()  
+def multiproc_async(func, list_params, name, simul_jobs=4):
+    '''
+    Execute asynchronous multi-process of given function over given list of parameters
+
+    Parameters
+    ------------------
+    func : function
+        A function to execute multi-processing
+    list_params : list
+
+    '''
+    if name == '__main__':
+        jobs = []
+        mp = multiprocessing.Pool(simul_jobs)
+        for params in list_params:            
+            jobs.append(mp.apply_async(func, params))        
+        mp.close()
+        mp.join()
         
+        return [job.get() for job in jobs]
         
-if __name__ == '__main__':
-    jobs = []
-    mp = multiprocessing.Pool(SIMULTANEOUS_JOBS)
-    for i in df_url.index:
-        url,file_name = df_url.loc[i,['url','file_name']]           
-        jobs.append(mp.apply_async(dl.download_landsat,(url,file_name,DEST_PATH,USER,PASSWORD,CHROME_DRIVER,OUTPUT_LOG,)))
-    
-    mp.close()
-    mp.join()
-    
-    num=sum([job.get() for job in jobs])
-    print('Downloaded {} pages'.format(num)) 

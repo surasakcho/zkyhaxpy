@@ -1,5 +1,12 @@
 import datetime
 
+def dttm_to_yyyymmdd(dttm):
+    '''
+    Return : a string of current datetime in yyyymmdd_hhmm 
+    '''
+    return datetime.datetime.strftime(dttm, '%Y%m%d')
+
+
 def curr_yyyymmdd_hhmm():
     '''
     Return : a string of current datetime in yyyymmdd_hhmm 
