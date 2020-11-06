@@ -15,8 +15,12 @@ import geopandas as gpd
 from shapely import wkt
 from shapely.geometry import Polygon, mapping
 import rasterio
+from rasterio import Affine, transform
 from rasterio.features import rasterize
 from rasterio.mask import mask
+import pyproj
+from pyproj import Proj, CRS
+import geohash as gh
 
 import skimage
 from skimage import filters, exposure
@@ -27,6 +31,71 @@ import matplotlib.pyplot as plt
 np.seterr(divide='ignore', invalid='ignore')
 
 
+def pixel_row_col_to_xy(in_row, in_col, in_transform, in_crs):
+    '''
+
+    Return x, y of given row, col of a pixel from a specific transform.
+
+    Parameters
+    ----------
+    in_row: int
+        the row number of a pixel
+    in_col: int
+        the column number of a pixel
+    in_transform: rasterio transform
+        the transform of a original raster of the pixel
+    in_crs: crs or str
+        the CRS of the original raster
+        
+    Returns
+    -------
+    (x, y): tuple
+        a tuple of x and y of the pixel
+	'''
+ 
+    t = in_transform * Affine.translation(0.5, 0.5) # reference the pixel centre
+    rc2xy = lambda r, c: (c, r) * t 
+    x,y = rc2xy(in_row, in_col)
+    
+    return (x, y)
+
+    
+    
+def xy_to_latlon(in_x, in_y, in_crs, in_zone):
+    pp = Proj( in_crs, proj="utm", zone=in_zone)
+    out_lon, out_lat = pp(in_x, in_y, inverse=True)
+    return (out_lat, out_lon)
+        
+def latlon_to_geohash(in_lat, in_lon, precision=12):
+    out_geohash = gh.encode(in_lat, in_lon, precision=precision)
+    return out_geohash
+
+def geohash_to_latlon(in_geohash, delta=False):
+    out_lat, out_lon = gh.decode(in_geohash, delta)    
+    return (out_lat, out_lon)
+    
+
+
+def int2geohash(number, alphabet='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'):
+    """Converts an integer to a base36 string."""
+    base36 = ''
+    sign = ''
+
+    if number < 0:
+        sign = '-'
+        number = -number
+
+    if 0 <= number < len(alphabet):
+        return sign + alphabet[number]
+
+    while number != 0:
+        number, i = divmod(number, len(alphabet))
+        base36 = alphabet[i] + base36
+
+    return sign + base36
+
+def geohash2int(number):
+    return int(number, 36)
 
 
 def extract_bits(img, position):
@@ -331,3 +400,40 @@ def create_polygon_from_wkt(wkt_polygon, crs="epsg:4326", to_crs=None):
             polygon = transform(project, polygon)
     return polygon
     
+    
+def check_gdf_in_geom(gdf, geom, simplify_geom_tole=0.0005, check_using_centroid=True):
+    '''
+
+    To check whether geometries in a GeoDataFrame are in a Shapely geometry or not.
+    Both gdf and geom must have a same crs.
+
+    Parameters
+    ----------
+    gdf: A GeoDataFrame 
+        A GeoDataFrame to be checked
+
+    geom: A shapely geometry
+        A shapely geometry to be checked against input gdf
+        
+    simplify_geom_tole: float or None
+        If a float between 0-1 given, the geom will be simplified using this tolerance.
+
+    check_using_centroid: boolean
+        If True, geometries in gdf will be converted into centroid before checking.
+        
+    Returns
+    -------
+    A pandas series of boolean.
+	'''
+    if check_using_centroid:
+        gdf['geometry'] = gdf.centroid    
+    
+    if simplify_geom_tole:
+        geom = geom.simplify(simplify_geom_tole)
+        
+    s_geom = gpd.GeoSeries([geom])
+            
+    s_chk_result = s_geom.apply(lambda val: gdf['geometry'].within(val)).squeeze()
+    s_chk_result.name = 'in_geom_f'
+    
+    return s_chk_result
