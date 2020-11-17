@@ -268,6 +268,12 @@ def unzip(zip_path, out_folder):
 
 
 def filepaths_to_df(list_files):
+    '''
+
+    Create a pandas dataframe for getting folder names, file names and file extensions of the given list file paths.
+
+	'''
+    
     df_list_files = pd.DataFrame(list_files, columns=['file_path'])
     df_list_files['file_nm'] = df_list_files['file_path'].apply(lambda path : os.path.basename(path))
     df_list_files['folder_nm'] = df_list_files['file_path'].apply(lambda path : os.path.basename(os.path.dirname(path)))
@@ -275,3 +281,19 @@ def filepaths_to_df(list_files):
     
     return df_list_files
     
+    
+def check_all_files_exists(*args):
+    '''
+
+    Check whether all file paths in args are already exists. If all of the paths exists, then return True. Otherwise, return False.
+
+    Examples
+    --------
+    >>> check_all_files_exists(r"C:\test\20201113_1206.xlsx", r"D:\directory.txt")
+
+	'''
+    for file_path in args:
+        if os.path.exists(file_path)==False:
+            return False
+        
+    return True
