@@ -64,3 +64,20 @@ def curr_colwidth():
     '''
 
     print(f'Current max column width = {pd.get_option("display.max_colwidth")}')
+    
+    
+    
+def read_parquets(list_file_path):
+    '''
+
+    Read multiple parquet files of the same template into a single pandas dataframe.
+
+	'''
+ 
+    list_df = []
+    for file_path in list_file_path:
+        list_df.append(file_path)
+        
+    df = pd.concat(list_df)
+    
+    return df
