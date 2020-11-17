@@ -76,7 +76,7 @@ def read_parquets(list_file_path):
  
     list_df = []
     for file_path in list_file_path:
-        list_df.append(file_path)
+        list_df.append(pd.read_parquet(file_path))
         
     df = pd.concat(list_df)
     
