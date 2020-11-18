@@ -2,8 +2,13 @@ import pandas as pd
 from IPython.display import display, HTML, display_html
 
 def auto_adjust():
-    set_colwidth()
-    pd.options.display.max_rows = 999
+    '''
+    Set column width = 100
+    Max displayed rows = 100
+    Max displayed columns = 100
+	'''
+    set_colwidth(100)
+    pd.options.display.max_rows = 100
     pd.options.display.max_columns = 100
 
 
@@ -45,6 +50,7 @@ def dec_colwidth(dec_colwidth=20,target_colwidth=None):
         pd.set_option('max_colwidth', target_colwidth)   
 
     print(f'Current max column width = {pd.get_option("display.max_colwidth")}')
+
 
 def set_colwidth(target_colwidth=100):
     '''
