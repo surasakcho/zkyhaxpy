@@ -41,3 +41,45 @@ def case_when(*args, default=np.nan, dtype=float):
     arr_out = np.where(~np.isnan(arr_out), arr_out, default)
     return arr_out.astype(dtype)
 
+
+def fillna(in_arr, in_fillvalue):
+    '''
+
+    Fill nan value in numpy array with fill in value(s).
+
+    Parameters
+    ----------
+    in_arr: a numpy array
+    in_fillvalue : a scalar or numpy array with the same shape of in_arr
+        
+        Returns
+    -------
+    out_arr: a numpy array that already filled
+
+	'''
+    out_arr = np.where(
+        np.isnan(in_arr),
+        in_fillvalue,
+        in_arr)
+    
+    return out_arr
+    
+    
+    
+def map_dict(in_arr, in_dict, in_default=np.nan):
+    
+    '''
+
+    Mapping an array to a given dict
+
+	'''
+    
+    if type(in_default) == np.ndarray:
+        assert(in_arr.shape==in_default.shape)
+        arr_default = in_default
+    else:
+        arr_default = np.full_like(in_arr, in_default)
+        
+    out_arr = np.vectorize(in_dict.get)(in_arr, arr_default)
+    
+    return out_arr
