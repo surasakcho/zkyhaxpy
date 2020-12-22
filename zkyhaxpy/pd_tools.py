@@ -73,16 +73,19 @@ def curr_colwidth():
     
     
     
-def read_parquets(list_file_path):
+def read_parquets(list_file_path, columns='all'):
     '''
 
     Read multiple parquet files of the same template into a single pandas dataframe.
 
 	'''
- 
+    
     list_df = []
     for file_path in list_file_path:
-        list_df.append(pd.read_parquet(file_path))
+        if columns=='all':
+            list_df.append(pd.read_parquet(file_path))
+        else:
+            list_df.append(pd.read_parquet(file_path, columns=columns))
         
     df = pd.concat(list_df)
     
