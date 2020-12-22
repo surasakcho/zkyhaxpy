@@ -12,7 +12,17 @@ def get_logger(log_name, log_path, log_columns, log_level='debug', log_sep='|'):
     Create a logger using file_handler.
     '''
 
+    assert(type(log_sep)==str)
+    
     create_folders(log_path)
+    
+    #create header of log file if not existing
+    if os.path.exists(log_path) == False:
+        print(f'{log_path} is not found. Start logging into a new file.')
+        with open(log_path, 'w') as opened_file:
+            opened_file.write(log_sep.join(['timestamp', 'log_level'] + log_columns) + '\n')                             
+    
+    #define logging behavior    
     logger = logging.getLogger(log_name)
 
     if log_level=='debug':
@@ -20,20 +30,15 @@ def get_logger(log_name, log_path, log_columns, log_level='debug', log_sep='|'):
     else:
         logger.setLevel(logging.INFO)
 
-    formatter=logging.Formatter('%(asctime)s|%(levelname)s|%(message)s')
+    formatter=logging.Formatter(f'%(asctime)s{log_sep}%(levelname)s{log_sep}%(message)s')
 
     file_handler=logging.FileHandler(log_path)
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
+    
+    if logger.hasHandlers()==False:
+        logger.addHandler(file_handler)
 
-    try:
-        pd.read_csv(log_path, sep=log_sep)
-    except Exception as e:
-        print(f'{log_path} is not found. Start logging into a new file.')
-        print(e)
-        logger.info(log_formatter(dict(zip(log_columns, log_columns)), log_columns))
-        
     return logger
 
 
