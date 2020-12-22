@@ -21,7 +21,13 @@ def get_logger(log_name, log_path, log_columns, log_level='debug', log_sep='|'):
         print(f'{log_path} is not found. Start logging into a new file.')
         with open(log_path, 'w') as opened_file:
             opened_file.write(log_sep.join(['timestamp', 'log_level'] + log_columns) + '\n')                             
-    
+    else:
+        df_log = pd.read_csv(log_path, sep=log_sep)       
+        exist_log_columns = list(df_log.columns)[2:]
+        assert(exist_log_columns==log_columns)
+        print(f'"{log_path}" is found. Resume logging in the existing file.')
+        
+
     #define logging behavior    
     logger = logging.getLogger(log_name)
 
