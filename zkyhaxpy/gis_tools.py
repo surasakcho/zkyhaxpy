@@ -197,7 +197,7 @@ def df_to_gdf(df, geom_col_nm):
     OUTPUT
     return :GeoPandas's DataFrame (gdf)
     '''
-    
+    df = df.copy()
     df['geometry'] = df[geom_col_nm].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, geometry='geometry', crs={'init' : 'epsg:4326'})
     return gdf
@@ -425,6 +425,7 @@ def check_gdf_in_geom(gdf, geom, simplify_geom_tole=0.0005, check_using_centroid
     -------
     A pandas series of boolean.
 	'''
+    gdf = gdf.copy()
     if check_using_centroid:
         gdf['geometry'] = gdf.centroid    
     
