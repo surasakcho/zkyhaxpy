@@ -74,7 +74,7 @@ def write_pickle(data, out_pickle_path, overwrite=True):
 
 
 
-def list_files_re(rootpath, filename_re=None, folder_re=None ):
+def get_list_files_re(rootpath, filename_re=None, folder_re=None ):
     '''
     rootpath : root path to lookup files
     filename_re : regular expression to search for filename
@@ -96,8 +96,48 @@ def list_files_re(rootpath, filename_re=None, folder_re=None ):
                 list_files.append(os.path.join(folder, file))
         
     return list_files    
+   
+
+def list_files_re(rootpath, filename_re=None, folder_re=None ):
+    '''
+    rootpath : root path to lookup files
+    filename_re : regular expression to search for filename
+    folder_re : regular expression to search for folder
+    return : a list of filepaths
+    '''
+    list_files = get_list_files_re(rootpath, filename_re, folder_re )   
+    return list_files            
         
-        
+def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exists=False):        
+    '''
+    Sync all files in the source folder that have names matched with the given regular expression. 
+    If force is true, all existing files will be overwritten.
+    
+    '''
+    create_folders(dst_folder)
+
+    list_files_src = get_list_files_re(src_folder, filename_re)
+    print(f'Syncing {len(list_files_src)} files from "{src_folder}" -> "{dst_folder}"')
+    n = 0
+    for src_path in tqdm(list_files_src):        
+        dst_path = os.path.join(dst_folder, os.path.basename(src_path))
+        if os.path.exists(dst_path)==True and force==False:
+            if show_exists==True:
+                print(f'{dst_path} already exists.')
+        else:
+            try:                
+                shutil.copy2(src_path, dst_path)
+                print(f'{dst_path} has been copied.')
+                n = n + 1
+            except Exception as e:
+                print(f'Error : cannot copy {src_path}!')
+                print(e)
+    
+    print(f'{n} files have been synced "{src_folder}" -> "{dst_folder}" completely.')
+    return 
+
+
+
 def sync_to_work(src_folder, filename_re=None, work_folder=r'c:\workspace', force=False, min_work_free_space_mb=10*1024, show_exists=False, check_file=True) :
     
     dst_folder = os.path.join(work_folder, os.path.basename(src_folder))
@@ -137,8 +177,6 @@ def sync_to_work(src_folder, filename_re=None, work_folder=r'c:\workspace', forc
 
     print(f'{n} files have been synced "{src_folder}" -> "{dst_folder}" completely.')
     return dst_folder
-
-
 
 def check_files(folder, file_type='parquet', same_columns=True):
     list_error_files = []
