@@ -8,6 +8,10 @@ from tqdm.notebook import tqdm
 from collections import namedtuple
 from zipfile import ZipFile 
 
+from distutils.dir_util import copy_tree
+
+
+
 def create_folders(path):
     
     basename = os.path.basename(path)
@@ -108,6 +112,7 @@ def list_files_re(rootpath, filename_re=None, folder_re=None ):
     list_files = get_list_files_re(rootpath, filename_re, folder_re )   
     return list_files            
         
+  
 def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exists=False):        
     '''
     Sync all files in the source folder that have names matched with the given regular expression. 
@@ -120,7 +125,8 @@ def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exi
     print(f'Syncing {len(list_files_src)} files from "{src_folder}" -> "{dst_folder}"')
     n = 0
     for src_path in tqdm(list_files_src):        
-        dst_path = os.path.join(dst_folder, os.path.basename(src_path))
+        dst_path = src_path.replace(src_folder, dst_folder)
+        create_folders(dst_path)
         if os.path.exists(dst_path)==True and force==False:
             if show_exists==True:
                 print(f'{dst_path} already exists.')
@@ -135,7 +141,6 @@ def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exi
     
     print(f'{n} files have been synced "{src_folder}" -> "{dst_folder}" completely.')
     return 
-
 
 
 def sync_to_work(src_folder, filename_re=None, work_folder=r'c:\workspace', force=False, min_work_free_space_mb=10*1024, show_exists=False, check_file=True) :
