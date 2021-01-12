@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="zkyhaxpy", # Replace with your own username
-    version="0.2.8.1.4",
+    version="0.2.8.1.5",
     author="Surasak Choedpasuporn",
     author_email="surasak.cho@gmail.com",
     description="A swiss-knife Data Science package for python",

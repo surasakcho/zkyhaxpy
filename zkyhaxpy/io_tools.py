@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import pandas as pd
+import random
 from tqdm.notebook import tqdm
 from collections import namedtuple
 from zipfile import ZipFile 
@@ -113,7 +114,7 @@ def list_files_re(rootpath, filename_re=None, folder_re=None ):
     return list_files            
         
   
-def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exists=False):        
+def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exists=False, random_sequence=False):        
     '''
     Sync all files in the source folder that have names matched with the given regular expression. 
     If force is true, all existing files will be overwritten.
@@ -122,6 +123,10 @@ def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exi
     create_folders(dst_folder)
 
     list_files_src = get_list_files_re(src_folder, filename_re)
+    
+    if random_sequence==True:
+        random.shuffle(list_files_src)
+        
     print(f'Syncing {len(list_files_src)} files from "{src_folder}" -> "{dst_folder}"')
     n = 0
     for src_path in tqdm(list_files_src):        
