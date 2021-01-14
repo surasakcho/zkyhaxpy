@@ -20,7 +20,6 @@ from rasterio.features import rasterize
 from rasterio.mask import mask
 import pyproj
 from pyproj import Proj, CRS
-import geohash as gh
 
 import skimage
 from skimage import filters, exposure
@@ -66,15 +65,6 @@ def xy_to_latlon(in_x, in_y, in_crs, in_zone):
     out_lon, out_lat = pp(in_x, in_y, inverse=True)
     return (out_lat, out_lon)
         
-def latlon_to_geohash(in_lat, in_lon, precision=12):
-    out_geohash = gh.encode(in_lat, in_lon, precision=precision)
-    return out_geohash
-
-def geohash_to_latlon(in_geohash, delta=False):
-    out_lat, out_lon = gh.decode(in_geohash, delta)    
-    return (out_lat, out_lon)
-    
-
 
 def int2geohash(number, alphabet='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'):
     """Converts an integer to a base36 string."""
