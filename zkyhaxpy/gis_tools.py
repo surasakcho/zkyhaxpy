@@ -12,8 +12,10 @@ import tarfile
 import utm
 from osgeo import ogr, gdal, gdal_array, gdalconst
 import geopandas as gpd
+import shapely
 from shapely import wkt
-from shapely.geometry import Polygon, mapping
+from shapely.geometry import Polygon, MultiPolygon, mapping
+
 import rasterio
 from rasterio import Affine, transform
 from rasterio.features import rasterize
@@ -29,6 +31,17 @@ import matplotlib.pyplot as plt
 
 np.seterr(divide='ignore', invalid='ignore')
 
+PROJECT_47 = pyproj.Transformer.from_crs(
+    'epsg:4326',   # source coordinate system
+    'epsg:32647',  # destination coordinate system
+    always_xy=True # Must have
+).transform
+
+PROJECT_48 = pyproj.Transformer.from_crs(
+    'epsg:4326',   # source coordinate system
+    'epsg:32648',  # destination coordinate system
+    always_xy=True # Must have
+).transform 
 
 def pixel_row_col_to_xy(in_row, in_col, in_transform, in_crs):
     '''
@@ -65,28 +78,6 @@ def xy_to_latlon(in_x, in_y, in_crs, in_zone):
     out_lon, out_lat = pp(in_x, in_y, inverse=True)
     return (out_lat, out_lon)
         
-
-def int2geohash(number, alphabet='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'):
-    """Converts an integer to a base36 string."""
-    base36 = ''
-    sign = ''
-
-    if number < 0:
-        sign = '-'
-        number = -number
-
-    if 0 <= number < len(alphabet):
-        return sign + alphabet[number]
-
-    while number != 0:
-        number, i = divmod(number, len(alphabet))
-        base36 = alphabet[i] + base36
-
-    return sign + base36
-
-def geohash2int(number):
-    return int(number, 36)
-
 
 def extract_bits(img, position):
     """
@@ -428,3 +419,146 @@ def check_gdf_in_geom(gdf, geom, simplify_geom_tole=0.0005, check_using_centroid
     s_chk_result.name = 'in_geom_f'
     
     return s_chk_result
+
+
+def wkt_to_geometry(in_str_wkt, in_ori_crs="epsg:4326", in_target_crs=None):
+    '''
+    Transform a wkt string into shapely geometry 
+    
+    Parameters
+    ----------
+    in_str_wkt: str
+        String of polygon (wkt format).
+    in_ori_crs: str
+        wkt_polygon's crs (should be "epsg:4326").
+    in_target_crs: str (optional), default None
+        Re-project crs to "to_crs".
+
+    Examples
+    --------
+    >>> wkt_to_geometry(in_str_wkt)
+    >>> wkt_to_geometry(in_str_wkt, in_target_crs="epsg:32647")
+    >>> wkt_to_geometry(in_str_wkt, in_target_crs="epsg:32648")
+    >>> wkt_to_geometry(wkt_polygon, in_target_crs="epsg:32660")
+    >>> wkt_to_geometry(wkt_polygon, in_target_crs="epsg:32647", in_target_crs="epsg:4326")
+
+    Returns
+    -------
+    Shapely geometry
+    '''
+
+    proj_47 = pyproj.Transformer.from_crs(
+        'epsg:4326',   # source coordinate system
+        'epsg:32647',  # destination coordinate system
+        always_xy=True # Must have
+    ).transform
+
+    proj_48 = pyproj.Transformer.from_crs(
+        'epsg:4326',   # source coordinate system
+        'epsg:32648',  # destination coordinate system
+        always_xy=True # Must have
+    ).transform 
+
+
+    out_geom = wkt.loads(in_str_wkt)
+    if in_target_crs is not None:
+        if in_ori_crs == "epsg:4326":
+            if in_target_crs == "epsg:32647":
+                out_geom = shapely.ops.transform(proj_47, out_geom)
+            elif in_target_crs == "epsg:32648":
+                out_geom = shapely.ops.transform(proj_48, out_geom)
+        else:
+            project = pyproj.Transformer.from_crs(
+                in_ori_crs,     # source coordinate system
+                in_target_crs,  # destination coordinate system
+                always_xy=True # Must have
+            ).transform
+            out_geom = shapely.ops.transform(project, out_geom)
+    return out_geom  
+
+
+
+
+
+
+
+
+def extract_pixel_values_one_polygon(in_wkt_polygon, in_raster, in_list_band_id=None, in_crs_polygon='epsg:4326', in_return_rowcol=True, **in_masking_kwargs):
+    '''
+    To extract pixel values of a given polygon (wkt or shapely geometry).
+
+    Parameters
+    ----------
+    in_wkt_polygon: str
+        a wkt string of polygon to extract
+
+    in_raster_path: str or rasterio.io.DatasetReader
+        a raster to be extracted
+        
+    in_list_band_id: list or np.array of integers
+        a list of target band ids to extract values. If None, all bands will be extracted. If specified, band id starts at 1.
+    
+    in_crs_polygon: str
+        a crs of given polygon
+        
+    in_crs_raster: str
+        a crs of given raster. If none, use raster crs
+    
+    in_masking_kwargs:
+        parameters for rasterio.mask.mask
+
+
+    Returns
+    -------
+    A dataframe of pixel values.
+    '''
+
+    #Get rasterio dataset if a path is given
+    if type(in_raster) != rasterio.io.DatasetReader:
+        tmp_raster = rasterio.open(in_raster, 'r')
+    else:
+        tmp_raster = in_raster
+  
+    #get masking params
+    all_touched = in_masking_kwargs.get("all_touched", False)
+    crop = in_masking_kwargs.get("crop", True)
+    nodata_val = in_masking_kwargs.get("nodata", -999)
+
+    #Get band descriptions
+    arr_band_desc = np.array(tmp_raster.descriptions)
+
+    #Generate row / col bands if not exist
+    if in_return_rowcol==True: 
+        if ~(('row' in arr_band_desc) & ('col' in arr_band_desc)):
+            #Incompleted
+            pass
+            
+    #create shapely polygon and convert to same crs as raster       
+    tmp_target_crs = tmp_raster.crs["init"]
+    geotransform = tmp_raster.transform
+    min_x = geotransform[2]
+    max_y = geotransform[5]
+    max_x = min_x + geotransform[0] * tmp_raster.width
+    min_y = max_y + geotransform[4] * tmp_raster.height
+
+    tmp_polygon = wkt_to_geometry(in_wkt_polygon, in_crs_polygon, tmp_target_crs)
+
+    polygon_centroid = tmp_polygon.centroid
+    centroid_x = polygon_centroid.x
+    centroid_y = polygon_centroid.y
+
+
+    arr_pixel_values, _ = mask(tmp_raster, tmp_polygon, crop=crop, all_touched=all_touched, indexes=in_list_band_id, nodata=nodata_val)                           
+    if (np.nanmax(arr_pixel_values) >= -1):
+        pass
+    else:                    
+        arr_pixel_values, _ = mask(tmp_raster, [polygon_centroid], crop=crop, all_touched=True, indexes=in_list_band_id, nodata=nodata_val)            
+    
+    
+    arr_pixel_values = arr_pixel_values[arr_pixel_values != nodata_val]
+
+
+    out_df_pixval = pd.DataFrame(arr_pixel_values.reshape(len(arr_band_desc), -1).T, columns=arr_band_desc)
+
+
+    return out_df_pixval
