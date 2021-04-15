@@ -13,9 +13,9 @@ def ftp_connection(ftp_address, user, password):
     Create a FTP connection
 	'''
     
-    ftp_conn = FTP(FTP_ADDRESS)  # connect to host, default port
+    ftp_conn = FTP(ftp_address)  # connect to host, default port
     #ftp.connect(port=21)       
-    ftp_conn.login(user=USER, passwd=PASSWORD)# user anonymous, passwd anonymous@
+    ftp_conn.login(user=user, passwd=password)# user anonymous, passwd anonymous@
 
 
     return ftp_conn
