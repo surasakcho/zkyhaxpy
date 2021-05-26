@@ -16,6 +16,8 @@ import shapely
 from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon, mapping
 
+import uuid 
+
 import rasterio
 from rasterio import Affine, transform
 from rasterio.features import rasterize
@@ -431,7 +433,7 @@ def wkt_to_geometry(in_str_wkt, in_ori_crs="epsg:4326", in_target_crs=None):
         String of polygon (wkt format).
     in_ori_crs: str
         wkt_polygon's crs (should be "epsg:4326").
-    in_target_crs: str (optional), default None
+    in_target_crs: str or CRS (optional), default None
         Re-project crs to "to_crs".
 
     Examples
@@ -462,6 +464,7 @@ def wkt_to_geometry(in_str_wkt, in_ori_crs="epsg:4326", in_target_crs=None):
 
     out_geom = wkt.loads(in_str_wkt)
     if in_target_crs is not None:
+        in_target_crs = in_target_crs.lower()
         if in_ori_crs == "epsg:4326":
             if in_target_crs == "epsg:32647":
                 out_geom = shapely.ops.transform(proj_47, out_geom)
@@ -480,19 +483,146 @@ def wkt_to_geometry(in_str_wkt, in_ori_crs="epsg:4326", in_target_crs=None):
 
 
 
+def create_row_col_arr(in_shape):
+    '''
+    Generate a numpy array of row and column mapping corresponding to the input array
+
+    Parameters
+    ----------
+    in_arr: numpy array
+        a numpy array
+
+    '''
+
+    nrow, ncol = in_shape
+    arr_row = np.array([np.arange(0, nrow, 1)] * ncol).T
+    arr_col = np.array([np.arange(0, ncol, 1)] * nrow)
+    out_arr_row_col = np.array([arr_row, arr_col]).astype(np.int16)
+
+    return out_arr_row_col
 
 
 
-def extract_pixel_values_one_polygon(in_wkt_polygon, in_raster, in_list_band_id=None, in_crs_polygon='epsg:4326', in_return_rowcol=True, **in_masking_kwargs):
+def create_row_col_mapping_raster(in_raster, out_raster_path):
+    '''
+    Create row & col mapping of given raster
+    
+    Parameters
+    ----------
+    in_raster: str or rasterio.io.DatasetReader
+        a raster to be extracted
+
+    out_raster_path: str or path
+        a path for output raster
+    '''
+
+    if type(in_raster) != rasterio.io.DatasetReader:
+        tmp_ds = rasterio.open(in_raster, 'r')
+    else:
+        tmp_ds = in_raster
+
+    tmp_arr_row_col = create_row_col_arr(tmp_ds.shape)
+   
+    with rasterio.Env():
+        profile = tmp_ds.profile
+        profile.update(
+            dtype=rasterio.int16,
+            count=2,
+            compress='lzw',)
+
+        with rasterio.open(out_raster_path, 'w', **profile) as dst:
+            #row
+            dst.write(tmp_arr_row_col[0], 1)
+            dst.set_band_description(1, 'row')
+
+            #col
+            dst.write(tmp_arr_row_col[1], 2)
+            dst.set_band_description(2, 'col')
+
+    print(f'{out_raster_path} has been created')
+
+
+
+
+
+
+def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:4326'):
+    '''
+    To get all row & col of pixels for given (single) polygon that located in given raster.
+    Using not all touched as masking option. If no pixel is found, will get pixel that contains use polygon's centroid instead.
+
+    Parameters
+    ----------
+    in_polygon: str or shapely polygon like
+        a wkt string or polygon to extract
+
+    in_raster: str or rasterio.io.DatasetReader
+        a raster to be extracted
+
+    Returns
+    -------
+    A 2-D array of pixel row & col [[row_1, col_1], [row_2, col_2], [row_3, col_3], ...]
+    '''
+
+
+    #Get rasterio dataset if a path is given
+    if type(in_row_col_mapping_raster) != rasterio.io.DatasetReader:
+        tmp_ds = rasterio.open(in_row_col_mapping_raster, 'r')
+    else:
+        tmp_ds = in_row_col_mapping_raster
+
+    profile = tmp_ds.profile
+    nodata_val = profile['nodata']
+    is_polygon_overlap = False
+
+    #Get shapely geometry the input polygon is WKT
+    if type(in_polygon) == str:
+        tmp_polygon = wkt_to_geometry(in_polygon, in_crs_polygon, tmp_ds.crs)
+    else:
+        tmp_polygon = in_polygon
+
+    #Get pixels' row & col by masking with row col mapping raster
+    try:
+        arr_row_col, _ = mask(tmp_ds, [tmp_polygon], crop=True, all_touched=False, nodata=nodata_val)    
+        arr_row_col = np.where(arr_row_col == nodata_val, np.nan, arr_row_col)
+        arr_row_col = arr_row_col.reshape(-1, 2)
+        arr_row_col = arr_row_col[(~np.isnan(arr_row_col)).all(axis=1)]
+
+        #if polygon is overlapping the raster but the polygon is smaller than the pixel, using pixel that contains centroid instead
+        if len(arr_row_col) == 0:
+            polygon_centroid = tmp_polygon.centroid
+            centroid_x = polygon_centroid.x
+            centroid_y = polygon_centroid.y         
+            arr_row_col, _ = mask(tmp_ds, [polygon_centroid], crop=True, all_touched=True, nodata=nodata_val)   
+            arr_row_col = arr_row_col.reshape(-1, 2)
+
+        assert(len(arr_row_col) > 0)
+        is_polygon_overlap = True
+        nbr_pixels = len(arr_row_col)
+
+    except Exception as e:
+        #If input polygon does not overlap the raster, return nan for row & col
+        if str(e) == 'Input shapes do not overlap raster.':
+            is_polygon_overlap = False    
+            arr_row_col = np.array([[np.nan, np.nan]])    
+            nbr_pixels = 0
+        else:
+            raise(e)
+    
+    return is_polygon_overlap, nbr_pixels, arr_row_col
+
+
+
+def extract_pixel_values_one_polygon(in_polygon, in_raster, in_list_band_id=None, in_crs_polygon='epsg:4326', in_return_rowcol=True, optimized=True, **in_masking_kwargs):
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry).
 
     Parameters
     ----------
-    in_wkt_polygon: str
-        a wkt string of polygon to extract
+    in_polygon: str or shapely polygon like
+        a wkt string or polygon to extract
 
-    in_raster_path: str or rasterio.io.DatasetReader
+    in_raster: str or rasterio.io.DatasetReader
         a raster to be extracted
         
     in_list_band_id: list or np.array of integers
@@ -515,9 +645,9 @@ def extract_pixel_values_one_polygon(in_wkt_polygon, in_raster, in_list_band_id=
 
     #Get rasterio dataset if a path is given
     if type(in_raster) != rasterio.io.DatasetReader:
-        tmp_raster = rasterio.open(in_raster, 'r')
+        tmp_ds = rasterio.open(in_raster, 'r')
     else:
-        tmp_raster = in_raster
+        tmp_ds = in_raster
   
     #get masking params
     all_touched = in_masking_kwargs.get("all_touched", False)
@@ -525,21 +655,18 @@ def extract_pixel_values_one_polygon(in_wkt_polygon, in_raster, in_list_band_id=
     nodata_val = in_masking_kwargs.get("nodata", -999)
 
     #Get band descriptions
-    arr_band_desc = np.array(tmp_raster.descriptions)
+    arr_band_desc = np.array(tmp_ds.descriptions)
 
-    #Generate row / col bands if not exist
-    if in_return_rowcol==True: 
-        if ~(('row' in arr_band_desc) & ('col' in arr_band_desc)):
-            #Incompleted
-            pass
+    #Generate row / col bands
+    arr_row_col = generate_row_col_arr(tmp_ds.shape)
             
     #create shapely polygon and convert to same crs as raster       
-    tmp_target_crs = tmp_raster.crs["init"]
-    geotransform = tmp_raster.transform
+    tmp_target_crs = tmp_ds.crs["init"]
+    geotransform = tmp_ds.transform
     min_x = geotransform[2]
     max_y = geotransform[5]
-    max_x = min_x + geotransform[0] * tmp_raster.width
-    min_y = max_y + geotransform[4] * tmp_raster.height
+    max_x = min_x + geotransform[0] * tmp_ds.width
+    min_y = max_y + geotransform[4] * tmp_ds.height
 
     tmp_polygon = wkt_to_geometry(in_wkt_polygon, in_crs_polygon, tmp_target_crs)
 
@@ -548,13 +675,11 @@ def extract_pixel_values_one_polygon(in_wkt_polygon, in_raster, in_list_band_id=
     centroid_y = polygon_centroid.y
 
 
-    arr_pixel_values, _ = mask(tmp_raster, tmp_polygon, crop=crop, all_touched=all_touched, indexes=in_list_band_id, nodata=nodata_val)                           
+    arr_pixel_values, _ = mask(tmp_ds, tmp_polygon, crop=crop, all_touched=all_touched, indexes=in_list_band_id, nodata=nodata_val)                           
     if (np.nanmax(arr_pixel_values) >= -1):
         pass
     else:                    
-        arr_pixel_values, _ = mask(tmp_raster, [polygon_centroid], crop=crop, all_touched=True, indexes=in_list_band_id, nodata=nodata_val)            
-    
-    
+        arr_pixel_values, _ = mask(tmp_ds, [polygon_centroid], crop=crop, all_touched=True, indexes=in_list_band_id, nodata=nodata_val)             
     arr_pixel_values = arr_pixel_values[arr_pixel_values != nodata_val]
 
 
