@@ -464,7 +464,6 @@ def wkt_to_geometry(in_str_wkt, in_ori_crs="epsg:4326", in_target_crs=None):
 
     out_geom = wkt.loads(in_str_wkt)
     if in_target_crs is not None:
-        in_target_crs = in_target_crs.lower()
         if in_ori_crs == "epsg:4326":
             if in_target_crs == "epsg:32647":
                 out_geom = shapely.ops.transform(proj_47, out_geom)
@@ -503,7 +502,7 @@ def create_row_col_arr(in_shape):
 
 
 
-def create_row_col_mapping_raster(in_raster, out_raster_path):
+def create_row_col_mapping_raster(in_raster, out_raster_path, out_nodata_value = -1000):
     '''
     Create row & col mapping of given raster
     
@@ -528,7 +527,8 @@ def create_row_col_mapping_raster(in_raster, out_raster_path):
         profile.update(
             dtype=rasterio.int16,
             count=2,
-            compress='lzw',)
+            compress='lzw',
+            nodata=out_nodata_value)
 
         with rasterio.open(out_raster_path, 'w', **profile) as dst:
             #row
@@ -585,7 +585,7 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
     try:
         arr_row_col, _ = mask(tmp_ds, [tmp_polygon], crop=True, all_touched=False, nodata=nodata_val)    
         arr_row_col = np.where(arr_row_col == nodata_val, np.nan, arr_row_col)
-        arr_row_col = arr_row_col.reshape(-1, 2)
+        arr_row_col = arr_row_col.reshape(2, -1).T
         arr_row_col = arr_row_col[(~np.isnan(arr_row_col)).all(axis=1)]
 
         #if polygon is overlapping the raster but the polygon is smaller than the pixel, using pixel that contains centroid instead
@@ -594,7 +594,7 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
             centroid_x = polygon_centroid.x
             centroid_y = polygon_centroid.y         
             arr_row_col, _ = mask(tmp_ds, [polygon_centroid], crop=True, all_touched=True, nodata=nodata_val)   
-            arr_row_col = arr_row_col.reshape(-1, 2)
+            arr_row_col = arr_row_col.reshape(2, -1).T
 
         assert(len(arr_row_col) > 0)
         is_polygon_overlap = True
@@ -687,3 +687,51 @@ def extract_pixel_values_one_polygon(in_polygon, in_raster, in_list_band_id=None
 
 
     return out_df_pixval
+
+
+    
+    #Get rasterio dataset if a path is given
+    if type(in_row_col_mapping_raster) != rasterio.io.DatasetReader:
+        tmp_ds = rasterio.open(in_row_col_mapping_raster, 'r')
+    else:
+        tmp_ds = in_row_col_mapping_raster
+
+    profile = tmp_ds.profile
+    nodata_val = profile['nodata']
+    is_polygon_overlap = False
+
+    #Get shapely geometry the input polygon is WKT
+    if type(in_polygon) == str:
+        tmp_polygon = wkt_to_geometry(in_polygon, in_crs_polygon, tmp_ds.crs)
+    else:
+        tmp_polygon = in_polygon
+
+    #Get pixels' row & col by masking with row col mapping raster
+    try:
+        arr_row_col, _ = mask(tmp_ds, [tmp_polygon], crop=True, all_touched=False, nodata=nodata_val)    
+        arr_row_col = np.where(arr_row_col == nodata_val, np.nan, arr_row_col)
+        arr_row_col = arr_row_col.reshape(2, -1).T
+        arr_row_col = arr_row_col[(~np.isnan(arr_row_col)).all(axis=1)]
+
+        #if polygon is overlapping the raster but the polygon is smaller than the pixel, using pixel that contains centroid instead
+        if len(arr_row_col) == 0:
+            polygon_centroid = tmp_polygon.centroid
+            centroid_x = polygon_centroid.x
+            centroid_y = polygon_centroid.y         
+            arr_row_col, _ = mask(tmp_ds, [polygon_centroid], crop=True, all_touched=True, nodata=nodata_val)   
+            arr_row_col = arr_row_col.reshape(2, -1).T
+
+        assert(len(arr_row_col) > 0)
+        is_polygon_overlap = True
+        nbr_pixels = len(arr_row_col)
+
+    except Exception as e:
+        #If input polygon does not overlap the raster, return nan for row & col
+        if str(e) == 'Input shapes do not overlap raster.':
+            is_polygon_overlap = False    
+            arr_row_col = np.array([[np.nan, np.nan]])    
+            nbr_pixels = 0
+        else:
+            raise(e)
+    
+    return is_polygon_overlap, nbr_pixels, arr_row_col

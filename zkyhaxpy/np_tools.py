@@ -32,13 +32,17 @@ def case_when(*args, default=np.nan, dtype=float):
     Numpy array of the same shape as inputted conditions with element assigned according to each case when condition.
 
 	'''
-    out_shape = args[0][0].shape
+    
+    out_shape = args[0][0].shape    
     arr_out = np.full(out_shape, np.nan)
+    arr_non_default_mask = np.full(out_shape, False) 
 
     for i in range(len(args)):
         assert(out_shape == args[i][0].shape)
         arr_out = np.where((np.isnan(arr_out) & (args[i][0])) , args[i][1], arr_out)                
-    arr_out = np.where(~np.isnan(arr_out), arr_out, default)
+        arr_non_default_mask = np.where(args[i][0], True, arr_non_default_mask)
+
+    arr_out = np.where(arr_non_default_mask, arr_out, default)
     return arr_out.astype(dtype)
 
 
