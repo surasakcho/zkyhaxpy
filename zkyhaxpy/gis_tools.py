@@ -330,7 +330,7 @@ def show_raster(raster, band=1, min_pctl=2, max_pctl=98, figsize=(10, 10), cmap=
 
 
 
-def adjust_bright_contrast(arr_img, alpha, beta):
+def adjust_brightness_contrast(arr_img, alpha, beta):
 
     '''
     Adjust brightness and constrast of given image array according to basic formular 
