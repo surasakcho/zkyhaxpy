@@ -330,6 +330,19 @@ def show_raster(raster, band=1, min_pctl=2, max_pctl=98, figsize=(10, 10), cmap=
 
 
 
+def adjust_bright_contrast(arr_img, alpha, beta):
+
+    '''
+    Adjust brightness and constrast of given image array according to basic formular 
+    "g(x)=αf(x)+β"
+
+    '''
+
+    arr_out = np.clip(alpha*arr_img + beta, 0, 255)
+    return arr_out
+
+
+
 def split_polygon(multi_polygon):
     #Code by PongporC 23/Jan/2020
     ''' split the polygon string in excel cell into a list of lat and long
@@ -735,3 +748,4 @@ def extract_pixel_values_one_polygon(in_polygon, in_raster, in_list_band_id=None
             raise(e)
     
     return is_polygon_overlap, nbr_pixels, arr_row_col
+

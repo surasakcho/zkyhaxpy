@@ -1,5 +1,6 @@
 import datetime
 import re
+import numpy as np
 
 dict_th_month = {
         'มกราคม':1,
@@ -55,11 +56,13 @@ def get_curr_yyyymmdd():
     '''
     return datetime.datetime.strftime(datetime.datetime.today(), '%Y%m%d')    
 
+
 def curr_yyyymmdd():
     '''
     Return : a string of current date in yyyymmdd
     '''
     return get_curr_yyyymmdd()
+
 
 def get_days_diff_yyyymmdd(yyyymmdd_1, yyyymmdd_2):
     '''
@@ -69,6 +72,7 @@ def get_days_diff_yyyymmdd(yyyymmdd_1, yyyymmdd_2):
     date_2 = datetime.datetime.strptime(yyyymmdd_2, '%Y%m%d')
     days_diff = date_1 - date_2
     return days_diff.days    
+
 
 def days_diff_yyyymmdd(yyyymmdd_1, yyyymmdd_2):
     '''
@@ -123,3 +127,45 @@ def convert_th_date_to_datetime(str_th_date):
     
     out_datetime = datetime.datetime(year=int_year, month=int_month, day=int_day)
     return out_datetime
+
+
+
+def date_to_date_ndays(arr_date, date_of_day_one = '2000-01-01', nbr_days_per_period=16):
+    '''
+    Get array of  N days of date
+    '''
+
+    arr_datediff_from_day_one = (arr_date - np.datetime64(date_of_day_one)) / np.timedelta64(1, 'D')
+    arr_date_ndays = np.datetime64(date_of_day_one) + np.ceil(arr_datediff_from_day_one / nbr_days_per_period) * nbr_days_per_period * np.timedelta64(1, 'D')
+    return arr_date_ndays    
+
+
+
+
+def yyyymmdd_to_numpy_datetime(arr_yyyymmdd):
+    '''
+    Convert array of string yyyymmdd into array of numpy datetime64
+    '''
+    
+    if arr_yyyymmdd.dtype != int:
+        arr_yyyymmdd = arr_yyyymmdd.astype(int)
+  
+    arr_yyyy = np.floor(arr_yyyymmdd / 10000)
+    arr_mm = np.floor(arr_yyyymmdd / 100) % 100
+    arr_dd = arr_yyyymmdd % 100
+
+    arr_yyyy = arr_yyyy.astype(int).astype(str)
+    arr_mm = arr_mm.astype(int).astype(str)
+    arr_dd = arr_dd.astype(int).astype(str)
+
+    arr_mm = np.char.zfill(arr_mm, 2)
+    arr_dd = np.char.zfill(arr_dd, 2)
+    arr_datetime_str = arr_yyyy
+    arr_datetime_str = np.core.defchararray.add(arr_datetime_str, '-')
+    arr_datetime_str = np.core.defchararray.add(arr_datetime_str, arr_mm)
+    arr_datetime_str = np.core.defchararray.add(arr_datetime_str, '-')
+    arr_datetime_str = np.core.defchararray.add(arr_datetime_str, arr_dd)
+
+    arr_datetime = arr_datetime_str.astype(dtype='datetime64[D]')
+
+    return arr_datetime

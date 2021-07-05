@@ -70,20 +70,28 @@ def fillna(in_arr, in_fillvalue):
     
     
     
-def map_dict(in_arr, in_dict, in_default=np.nan):
-    
+
+
+
+
+def get_last_n_digit(in_arr, nbr_digits=1):    
     '''
-
-    Mapping an array to a given dict
-
-	'''
+    Get N last digit(s) of the given array.
+    '''
     
-    if type(in_default) == np.ndarray:
-        assert(in_arr.shape==in_default.shape)
-        arr_default = in_default
-    else:
-        arr_default = np.full_like(in_arr, in_default)
-        
-    out_arr = np.vectorize(in_dict.get)(in_arr, arr_default)
+    assert(type(nbr_digits)==int)
+    assert(nbr_digits >= 1)
+    assert(nbr_digits <= 4)
+    divider = 10 ** nbr_digits
+    out_arr = np.remainder(in_arr, divider).astype(int)
+    
+    return out_arr    
+
+
+def get_mod(in_arr, mod):    
+    '''
+    Get mod for given array
+    '''
+    out_arr = np.remainder(in_arr, mod).astype(int)
     
     return out_arr

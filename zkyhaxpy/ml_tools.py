@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from sklearn import svm, datasets
@@ -127,3 +128,29 @@ def plot_roc(y_true, y_pred, classes,
     plt.grid()
     plt.savefig(roc_path)
     plt.show() 
+
+
+
+def get_threshold_at_fpr(probs, y_act, fpr):
+    '''
+    Get threshold prob at given FPR
+
+    inputs
+    -------------------------------
+    probs
+        array like of probabities of class 1
+    y_act
+        array like of actual class
+    fpr
+        FPR to get threshold
+
+    outputs
+    -------------------------------
+    threshold_at_fpr: float
+        threshold prob at given FPR
+    '''
+    df_tmp = pd.DataFrame(zip(probs, y_act), columns=['prob', 'y_act'])
+    df_tmp = df_tmp.sort_values('prob', ascending=False)
+    df_tmp['fpr_at_current_threshold'] = np.cumsum((df_tmp['y_act']==0) / len(df_tmp))
+    threshold_at_fpr = df_tmp.iloc[np.argmin(df_tmp['fpr_at_current_threshold'] < fpr) ]['prob']
+    return threshold_at_fpr

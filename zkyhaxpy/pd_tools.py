@@ -12,6 +12,28 @@ def auto_adjust():
     pd.options.display.max_columns = 100
 
 
+
+def set_max_rows(max_rows=100):
+    '''
+    Set max display rows
+    
+    Return : None
+    '''
+
+    pd.options.display.max_rows = max_rows
+
+
+def set_max_columns(max_columns=100):
+    '''
+    Set max display columns
+    
+    Return : None
+    '''
+
+    pd.options.display.max_columns = max_columns
+
+
+
 def display_html(df):
     '''
     display a dataframe as html table
@@ -62,7 +84,7 @@ def set_colwidth(target_colwidth=100):
     pd.set_option('max_colwidth', target_colwidth)
 
 
-def curr_colwidth():
+def get_curr_colwidth():
     '''
     Decrease column width of pandas dataframe display
     
@@ -72,7 +94,10 @@ def curr_colwidth():
     print(f'Current max column width = {pd.get_option("display.max_colwidth")}')
     
     
-    
+
+
+
+        
 def read_parquets(list_file_path, columns='all'):
     '''
 
@@ -90,3 +115,19 @@ def read_parquets(list_file_path, columns='all'):
     df = pd.concat(list_df)
     
     return df
+
+
+def convert_dtypes(in_df, in_dict_dtypes, default_dtype=None):
+    '''
+    Convert dtypes of a dataframe according to given dict of column names and dtypes.
+    '''
+    in_df = in_df.copy()
+    for col_nm in in_df.columns:
+        if col_nm in in_dict_dtypes.keys():
+            if in_df[col_nm].dtype != in_dict_dtypes[col_nm]:
+                in_df[col_nm] = in_df[col_nm].astype(in_dict_dtypes[col_nm])
+        elif default_dtype:
+            if in_df[col_nm].dtype != default_dtype:
+                in_df[col_nm] = in_df[col_nm].astype(default_dtype)
+            
+    return in_df
