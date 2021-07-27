@@ -22,6 +22,7 @@ import rasterio
 from rasterio import Affine, transform
 from rasterio.features import rasterize
 from rasterio.mask import mask
+from rasterio.io import MemoryFile
 import pyproj
 from pyproj import Proj, CRS
 
@@ -671,7 +672,7 @@ def extract_pixel_values_one_polygon(in_polygon, in_raster, in_list_band_id=None
     arr_band_desc = np.array(tmp_ds.descriptions)
 
     #Generate row / col bands
-    arr_row_col = generate_row_col_arr(tmp_ds.shape)
+    arr_row_col = create_row_col_arr(tmp_ds.shape)
             
     #create shapely polygon and convert to same crs as raster       
     tmp_target_crs = tmp_ds.crs["init"]
