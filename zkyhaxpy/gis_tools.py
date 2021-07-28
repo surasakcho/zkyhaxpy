@@ -7,6 +7,7 @@ import pandas as pd
 import datetime
 import os
 import subprocess
+from numba import jit
 from tqdm import tqdm
 import tarfile
 import utm
@@ -172,17 +173,17 @@ def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', d
 
 
 
-def df_to_gdf(df, geom_col_nm):
+def df_to_gdf(df, geometry):
     '''
     INPUT 
     df : dataframe with a column containing geometry in wkt format
-    geom_col_nm : str specifies column name of geometry in df
+    geometry : str specifies column name of geometry in df
     
     OUTPUT
     return :GeoPandas's DataFrame (gdf)
     '''
     df = df.copy()
-    df['geometry'] = df[geom_col_nm].apply(wkt.loads)
+    df['geometry'] = df[geometry].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, geometry='geometry', crs={'init' : 'epsg:4326'})
     return gdf
 
@@ -516,17 +517,21 @@ def create_row_col_arr(in_shape):
 
 
 
-def create_row_col_mapping_raster(in_raster, out_raster_path, out_nodata_value = -1000):
+def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None, out_nodata_value = -1000):
     '''
-    Create row & col mapping of given raster
+    Create row & col mapping of given raster. Output can be either an actual file or an on-memory file (rasterio's dataset).
     
     Parameters
     ----------
     in_raster: str or rasterio.io.DatasetReader
         a raster to be extracted
 
-    out_raster_path: str or path
+    out_raster_path: str of path
         a path for output raster
+
+    out_mem: True or False
+        if True, return as a memory file's dataset
+
     '''
 
     if type(in_raster) != rasterio.io.DatasetReader:
@@ -543,17 +548,32 @@ def create_row_col_mapping_raster(in_raster, out_raster_path, out_nodata_value =
             count=2,
             compress='lzw',
             nodata=out_nodata_value)
+        if out_raster_path:
+            with rasterio.open(out_raster_path, 'w', **profile) as dst:
+                #row
+                dst.write(tmp_arr_row_col[0], 1)
+                dst.set_band_description(1, 'row')
 
-        with rasterio.open(out_raster_path, 'w', **profile) as dst:
+                #col
+                dst.write(tmp_arr_row_col[1], 2)
+                dst.set_band_description(2, 'col')
+
+            print(f'{out_raster_path} has been created')
+
+        elif out_mem==True:
+            memfile = MemoryFile()
+            ds_mem = memfile.open( **profile)
+            
             #row
-            dst.write(tmp_arr_row_col[0], 1)
-            dst.set_band_description(1, 'row')
+            ds_mem.write(tmp_arr_row_col[0], 1)
+            ds_mem.set_band_description(1, 'row')
 
             #col
-            dst.write(tmp_arr_row_col[1], 2)
-            dst.set_band_description(2, 'col')
+            ds_mem.write(tmp_arr_row_col[1], 2)
+            ds_mem.set_band_description(2, 'col')
+            return ds_mem
+                
 
-    print(f'{out_raster_path} has been created')
 
 
 
@@ -570,7 +590,7 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
     in_polygon: str or shapely polygon like
         a wkt string or polygon to extract
 
-    in_raster: str or rasterio.io.DatasetReader
+    in_raster: str or rasterio.io.DatasetReader or  rasterio.io.DatasetWriter
         a raster to be extracted
 
     Returns
@@ -580,10 +600,12 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
 
 
     #Get rasterio dataset if a path is given
-    if type(in_row_col_mapping_raster) != rasterio.io.DatasetReader:
-        tmp_ds = rasterio.open(in_row_col_mapping_raster, 'r')
-    else:
+    if type(in_row_col_mapping_raster) in ([rasterio.io.DatasetReader, rasterio.io.DatasetWriter]):
         tmp_ds = in_row_col_mapping_raster
+        
+    else:    
+        tmp_ds = rasterio.open(in_row_col_mapping_raster, 'r')
+        
 
     profile = tmp_ds.profile
     nodata_val = profile['nodata']
@@ -623,130 +645,180 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
         else:
             raise(e)
     
-    return is_polygon_overlap, nbr_pixels, arr_row_col
+    return is_polygon_overlap, nbr_pixels, arr_row_col.astype(np.float64)
 
 
 
-def extract_pixel_values_one_polygon(in_polygon, in_raster, in_list_band_id=None, in_crs_polygon='epsg:4326', in_return_rowcol=True, optimized=True, **in_masking_kwargs):
+
+
+@jit(nopython=True)
+def __extract_values_from_2d_array_with_row_col_numba(arr_2d_value, arr_row_col):
+    '''
+    Get pixel values for given 2d-array (1-band raster)
+
+    inputs
+    ---------------------------------
+    arr_2d_value: 2d numpy array (y, x)
+        an array of raster values
+
+    arr_row_col: 2d numpy array
+        an array of pixels' row-id & col-id 
+
+    '''
+    list_values = []
+    for (row, col) in arr_row_col:
+        list_values.append(arr_2d_value[row, col])
+
+    return list_values
+
+
+
+
+@jit(nopython=True)
+def __extract_values_from_3d_array_with_row_col_numba(arr_3d_value, arr_row_col):
+    '''
+    Get pixel values for given 3d-array (multi-band raster)
+
+    inputs
+    ---------------------------------
+    arr_3d_value: 3d numpy array (m, y, x)
+        an array of multibands raster values. (same format as output of rasterio.read([band_ids]) from rasterio's dataset )
+
+    arr_row_col: 2d numpy array
+        an array of pixels' row-id & col-id 
+
+    '''
+
+    list_values = []
+    for arr_2d_value in arr_3d_value:
+        list_values.append(__extract_values_from_2d_array_with_row_col_numba(arr_2d_value, arr_row_col))
+
+    return np.array(list_values).T
+
+
+
+
+@jit(nopython=True)
+def __reformat_list_row_col_for_df(in_list_polygon_id, in_list_arr_row_col):
+    
+    
+    for i in range(0, len(in_list_arr_row_col)):        
+        id_tmp = in_list_polygon_id[i]
+        arr_row_col_tmp = in_list_arr_row_col[i]
+
+
+    #     # arr_row_col_tmp = arr_row_col_tmp.astype(int)
+        arr_polygon_id_tmp = np.full((arr_row_col_tmp.shape[0]), id_tmp)
+        if i == 0:
+            arr_polygon_id = arr_polygon_id_tmp.copy()
+            arr_row_col = arr_row_col_tmp.copy()
+            i = 1
+        else:
+            arr_polygon_id = np.concatenate((arr_polygon_id, arr_polygon_id_tmp)).copy()
+            arr_row_col = np.concatenate((arr_row_col, arr_row_col_tmp)).copy()
+            i = i + 1
+
+            
+            
+    return arr_polygon_id, arr_row_col[:,0], arr_row_col[:,1]
+
+
+
+
+
+def get_df_row_col(in_s_polygon, in_raster_path):
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry).
 
     Parameters
     ----------
-    in_polygon: str or shapely polygon like
-        a wkt string or polygon to extract
+    in_s_polygon: a pandas series 
+        a series of polygons to be extracted
 
-    in_raster: str or rasterio.io.DatasetReader
-        a raster to be extracted
+    in_raster_path: str of raster path
+        a path of the raster to get row&col        
         
-    in_list_band_id: list or np.array of integers
-        a list of target band ids to extract values. If None, all bands will be extracted. If specified, band id starts at 1.
-    
-    in_crs_polygon: str
-        a crs of given polygon
-        
-    in_crs_raster: str
-        a crs of given raster. If none, use raster crs
-    
-    in_masking_kwargs:
-        parameters for rasterio.mask.mask
-
-
     Returns
     -------
-    A dataframe of pixel values.
+    A dataframe of pixel with row&col (index of series will be shown as another column).
+
     '''
 
-    #Get rasterio dataset if a path is given
-    if type(in_raster) != rasterio.io.DatasetReader:
-        tmp_ds = rasterio.open(in_raster, 'r')
-    else:
-        tmp_ds = in_raster
-  
-    #get masking params
-    all_touched = in_masking_kwargs.get("all_touched", False)
-    crop = in_masking_kwargs.get("crop", True)
-    nodata_val = in_masking_kwargs.get("nodata", -999)
+   
+    #Create temp on-memory dataset
+    ds_mem_rowcol_raster = create_row_col_mapping_raster(in_raster_path, out_mem=True)
 
-    #Get band descriptions
-    arr_band_desc = np.array(tmp_ds.descriptions)
+    #getting row-col from on-memory row-col raster
+    list_arr_row_col = []    
+    list_polygon_id = []    
+    for polygon_id, tmp_polygon in in_s_polygon.iteritems():
+        is_polygon_overlap, nbr_pixels, arr_row_col = get_pix_row_col(tmp_polygon, ds_mem_rowcol_raster)
+        if is_polygon_overlap:
+            list_polygon_id.append(polygon_id)
+            list_arr_row_col.append(arr_row_col)
+    
+    arr_polygon_id, arr_row, arr_col = __reformat_list_row_col_for_df(list_polygon_id, list_arr_row_col)
+    list_data = zip(arr_polygon_id, arr_row, arr_col)
+    out_df_polygon_row_col = pd.DataFrame(list_data, columns=[in_s_polygon.index.name, 'row', 'col'])
+    out_df_polygon_row_col[['row', 'col']] = out_df_polygon_row_col[['row', 'col']].astype(int)
 
-    #Generate row / col bands
-    arr_row_col = create_row_col_arr(tmp_ds.shape)
-            
-    #create shapely polygon and convert to same crs as raster       
-    tmp_target_crs = tmp_ds.crs["init"]
-    geotransform = tmp_ds.transform
-    min_x = geotransform[2]
-    max_y = geotransform[5]
-    max_x = min_x + geotransform[0] * tmp_ds.width
-    min_y = max_y + geotransform[4] * tmp_ds.height
-
-    tmp_polygon = wkt_to_geometry(in_wkt_polygon, in_crs_polygon, tmp_target_crs)
-
-    polygon_centroid = tmp_polygon.centroid
-    centroid_x = polygon_centroid.x
-    centroid_y = polygon_centroid.y
+    return out_df_polygon_row_col
 
 
-    arr_pixel_values, _ = mask(tmp_ds, tmp_polygon, crop=crop, all_touched=all_touched, indexes=in_list_band_id, nodata=nodata_val)                           
-    if (np.nanmax(arr_pixel_values) >= -1):
-        pass
-    else:                    
-        arr_pixel_values, _ = mask(tmp_ds, [polygon_centroid], crop=crop, all_touched=True, indexes=in_list_band_id, nodata=nodata_val)             
-    arr_pixel_values = arr_pixel_values[arr_pixel_values != nodata_val]
 
 
-    out_df_pixval = pd.DataFrame(arr_pixel_values.reshape(len(arr_band_desc), -1).T, columns=arr_band_desc)
 
+def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_col_nm, in_target_raster_band_id=1, nodata_val=-999):
+    '''
+    To extract pixel values of a given polygon (wkt or shapely geometry).
 
-    return out_df_pixval
+    Parameters
+    ----------
+    in_s_polygon: a pandas series 
+        a series of polygons to be extracted
 
+    in_list_raster_path: list
+        a list of paths of the raster to be extracted
+        
+    in_list_out_col_nm: list 
+        a list of column names of output dataframe representing each raster
+    
+    in_target_raster_band_id: int
+        indicate band id of raster to extract
+
+    nodata_val: number
+        a value of nodata value of input raster which will be replaced with np.nan
+        
+    Returns
+    -------
+    A dataframe of pixel values with row-col.
+
+    '''
+    #check no. of output columns equals to no. of raster files
+    assert(len(in_list_out_col_nm) == len(in_list_raster_path))
+
+    #check all of given raster paths are having the same geo reference & transform
+    tmp_raster_path = in_list_raster_path[0]   
+    with rasterio.open(tmp_raster_path) as ds_tmp:
+        tmp_transform = ds_tmp.transform
+        tmp_crs = ds_tmp.crs    
+    for tmp_raster_path in in_list_raster_path:
+        with rasterio.open(tmp_raster_path) as ds_tmp:
+            assert(tmp_transform == ds_tmp.transform)
+            assert(tmp_crs == ds_tmp.crs)
 
     
-    #Get rasterio dataset if a path is given
-    if type(in_row_col_mapping_raster) != rasterio.io.DatasetReader:
-        tmp_ds = rasterio.open(in_row_col_mapping_raster, 'r')
-    else:
-        tmp_ds = in_row_col_mapping_raster
 
-    profile = tmp_ds.profile
-    nodata_val = profile['nodata']
-    is_polygon_overlap = False
+    df_polygon_row_col = get_df_row_col(in_s_polygon, tmp_raster_path)
+    for i in tqdm(range(len(in_list_out_col_nm))):
+        col_nm = in_list_out_col_nm[i]
+        raster_path = in_list_raster_path[i]
+        with rasterio.open(raster_path) as ds:
+            arr_raster = ds.read(in_target_raster_band_id)
 
-    #Get shapely geometry the input polygon is WKT
-    if type(in_polygon) == str:
-        tmp_polygon = wkt_to_geometry(in_polygon, in_crs_polygon, tmp_ds.crs)
-    else:
-        tmp_polygon = in_polygon
+        arr_pixval_1d = __extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col[['row', 'col']].values)
+        df_polygon_row_col[col_nm] = arr_pixval_1d
 
-    #Get pixels' row & col by masking with row col mapping raster
-    try:
-        arr_row_col, _ = mask(tmp_ds, [tmp_polygon], crop=True, all_touched=False, nodata=nodata_val)    
-        arr_row_col = np.where(arr_row_col == nodata_val, np.nan, arr_row_col)
-        arr_row_col = arr_row_col.reshape(2, -1).T
-        arr_row_col = arr_row_col[(~np.isnan(arr_row_col)).all(axis=1)]
+    return df_polygon_row_col
 
-        #if polygon is overlapping the raster but the polygon is smaller than the pixel, using pixel that contains centroid instead
-        if len(arr_row_col) == 0:
-            polygon_centroid = tmp_polygon.centroid
-            centroid_x = polygon_centroid.x
-            centroid_y = polygon_centroid.y         
-            arr_row_col, _ = mask(tmp_ds, [polygon_centroid], crop=True, all_touched=True, nodata=nodata_val)   
-            arr_row_col = arr_row_col.reshape(2, -1).T
-
-        assert(len(arr_row_col) > 0)
-        is_polygon_overlap = True
-        nbr_pixels = len(arr_row_col)
-
-    except Exception as e:
-        #If input polygon does not overlap the raster, return nan for row & col
-        if str(e) == 'Input shapes do not overlap raster.':
-            is_polygon_overlap = False    
-            arr_row_col = np.array([[np.nan, np.nan]])    
-            nbr_pixels = 0
-        else:
-            raise(e)
-    
-    return is_polygon_overlap, nbr_pixels, arr_row_col
 

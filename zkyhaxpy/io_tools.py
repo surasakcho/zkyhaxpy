@@ -149,7 +149,7 @@ def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exi
                 print(e)
     
     print(f'{n} files have been synced "{src_folder}" -> "{dst_folder}" completely.')
-    return 
+    return dst_folder
 
 
 def sync_to_work(src_folder, filename_re=None, work_folder=r'c:\workspace', force=False, min_work_free_space_mb=10*1024, show_exists=False, check_file=True) :
