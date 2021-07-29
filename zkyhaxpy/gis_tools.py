@@ -751,8 +751,8 @@ def get_df_row_col(in_s_polygon, in_raster_path):
     #getting row-col from on-memory row-col raster
     list_arr_row_col = []    
     list_polygon_id = []    
-    print('Getting row&col of pixels...')
-    for polygon_id, tmp_polygon in tqdm(in_s_polygon.iteritems(), total=len(in_s_polygon)):
+    
+    for polygon_id, tmp_polygon in tqdm(in_s_polygon.iteritems(), 'Getting row&col of pixels...', total=len(in_s_polygon)):
         is_polygon_overlap, nbr_pixels, arr_row_col = get_pix_row_col(tmp_polygon, ds_mem_rowcol_raster)
         if is_polygon_overlap:
             list_polygon_id.append(polygon_id)
@@ -812,8 +812,8 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
     
 
     df_polygon_row_col_pixval = get_df_row_col(in_s_polygon, tmp_raster_path)
-    print('Getting pixel values...')
-    for i in tqdm(range(len(in_list_out_col_nm))):
+    
+    for i in tqdm(range(len(in_list_out_col_nm)), 'Getting pixel values...'):
         col_nm = in_list_out_col_nm[i]
         raster_path = in_list_raster_path[i]
         with rasterio.open(raster_path) as ds:
