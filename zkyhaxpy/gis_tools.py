@@ -810,7 +810,7 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
 
     
 
-    df_polygon_row_col = get_df_row_col(in_s_polygon, tmp_raster_path)
+    df_polygon_row_col_pixval = get_df_row_col(in_s_polygon, tmp_raster_path)
     print('Getting pixel values...')
     for i in tqdm(range(len(in_list_out_col_nm))):
         col_nm = in_list_out_col_nm[i]
@@ -818,9 +818,9 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
         with rasterio.open(raster_path) as ds:
             arr_raster = ds.read(in_target_raster_band_id)
 
-        arr_pixval_1d = __extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col[['row', 'col']].values)
-        df_polygon_row_col[col_nm] = arr_pixval_1d
+        arr_pixval_1d = __extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col_pixval[['row', 'col']].values)
+        df_polygon_row_col_pixval[col_nm] = arr_pixval_1d
 
-    return df_polygon_row_col
+    return df_polygon_row_col_pixval
 
 
