@@ -769,7 +769,7 @@ def get_df_row_col(in_s_polygon, in_raster_path):
 
 
 
-def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_col_nm, in_target_raster_band_id=1, nodata_val=-999):
+def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_col_nm, in_target_raster_band_id=1, nodata_val=-999, check_raster_consistent=True):
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry).
 
@@ -800,13 +800,14 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
 
     #check all of given raster paths are having the same geo reference & transform
     tmp_raster_path = in_list_raster_path[0]   
-    with rasterio.open(tmp_raster_path) as ds_tmp:
-        tmp_transform = ds_tmp.transform
-        tmp_crs = ds_tmp.crs    
-    for tmp_raster_path in in_list_raster_path:
+    if check_raster_consistent:
         with rasterio.open(tmp_raster_path) as ds_tmp:
-            assert(tmp_transform == ds_tmp.transform)
-            assert(tmp_crs == ds_tmp.crs)
+            tmp_transform = ds_tmp.transform
+            tmp_crs = ds_tmp.crs    
+        for tmp_raster_path in in_list_raster_path:
+            with rasterio.open(tmp_raster_path) as ds_tmp:
+                assert(tmp_transform == ds_tmp.transform)
+                assert(tmp_crs == ds_tmp.crs)
 
     
 
@@ -819,7 +820,7 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
             arr_raster = ds.read(in_target_raster_band_id)
 
         arr_pixval_1d = __extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col_pixval[['row', 'col']].values)
-        df_polygon_row_col_pixval[col_nm] = arr_pixval_1d
+        df_polygon_row_col_pixval[col_nm] = np.where(arr_pixval_1d==nodata_val, np.nan, arr_pixval_1d)
 
     return df_polygon_row_col_pixval
 
