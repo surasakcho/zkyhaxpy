@@ -1,5 +1,6 @@
 import pandas as pd
 from IPython.display import display, HTML, display_html
+from tqdm.notebook import tqdm
 
 def auto_adjust():
     '''
@@ -106,7 +107,7 @@ def read_parquets(list_file_path, columns='all'):
 	'''
     
     list_df = []
-    for file_path in list_file_path:
+    for file_path in tqdm(list_file_path, 'reading parquets...'):
         if columns=='all':
             list_df.append(pd.read_parquet(file_path))
         else:
