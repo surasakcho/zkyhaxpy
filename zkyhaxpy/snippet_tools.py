@@ -1,7 +1,7 @@
 crop_snippet = [    
     '!pip install rasterio utm geopandas',
     ''
-    'from zkyhaxpy import io_tools, gis_tools, colab_tools',
+    'from zkyhaxpy import io_tools, pd_tools, np_tools, gis_tools, colab_tools, snippet_tools',
     'import pandas as pd',
     'import numpy as np',
     'import os',
