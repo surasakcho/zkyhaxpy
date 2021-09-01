@@ -4,6 +4,7 @@ crop_snippet = [
     'from zkyhaxpy import io_tools, pd_tools, np_tools, gis_tools, colab_tools, snippet_tools, console_tools',
     'import pandas as pd',
     'import numpy as np',
+    'from tqdm.notebook import tqdm',
     'import os',
     'import matplotlib.pyplot as plt',  
     '',

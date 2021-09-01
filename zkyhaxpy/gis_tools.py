@@ -769,9 +769,52 @@ def get_df_row_col(in_s_polygon, in_raster_path):
 
 
 
+def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm, in_list_target_raster_band_id, nodata_val=-999):
+    '''
+    To extract pixel values of a given polygon (wkt or shapely geometry) from single raster file with one or more bands.
+
+    Parameters
+    ----------
+    in_s_polygon: a pandas series 
+        a series of polygons to be extracted
+
+    in_raster_path: str
+        a path of the raster to be extracted
+        
+    in_list_out_col_nm: list 
+        a list of column names of output dataframe representing each raster
+    
+    in_list_target_raster_band_id: int
+        indicate band id of raster to extract
+
+    nodata_val: number
+        a value of nodata value of input raster which will be replaced with np.nan
+        
+    Returns
+    -------
+    A dataframe of pixel values with row-col.
+
+    '''
+    #check no. of output columns equals to no. of raster files
+    assert(len(in_list_out_col_nm) == len(in_list_target_raster_band_id))
+
+    df_polygon_row_col_pixval = get_df_row_col(in_s_polygon, in_raster_path)
+    
+    for i in tqdm(range(len(in_list_out_col_nm)), 'Getting pixel values...'):
+        col_nm = in_list_out_col_nm[i]        
+        band_id = in_list_target_raster_band_id[i]
+        with rasterio.open(in_raster_path) as ds:
+            arr_raster = ds.read(band_id)
+
+        arr_pixval_1d = __extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col_pixval[['row', 'col']].values)
+        df_polygon_row_col_pixval[col_nm] = np.where(arr_pixval_1d==nodata_val, np.nan, arr_pixval_1d)
+
+    return df_polygon_row_col_pixval
+
+
 def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_col_nm, in_target_raster_band_id=1, nodata_val=-999, check_raster_consistent=True):
     '''
-    To extract pixel values of a given polygon (wkt or shapely geometry).
+    To extract pixel values of a given polygon (wkt or shapely geometry) from multiple raster files with the same geo reference.
 
     Parameters
     ----------
