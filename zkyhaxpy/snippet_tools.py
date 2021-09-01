@@ -7,7 +7,7 @@ crop_snippet = [
     'import os',
     'import matplotlib.pyplot as plt',  
     '',
-    'ln -s /home/james james'
+    '!ln -s /content/drive/MyDrive/!Surasak-PIER/Crop-Insurance/NDA-Data/vew_plant_info_official_polygon_disaster_all_rice_by_year /plant_info'
 ]
 
 def print_snippet(module):

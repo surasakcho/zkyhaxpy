@@ -100,6 +100,7 @@ def get_list_files_re(rootpath, filename_re=None, folder_re=None, return_df=Fals
             if ((re.search(filename_re, file) != None) & (re.search(folder_re, folder) != None)):
                 list_files.append(os.path.join(folder, file))
     
+    print(f'Total of {len(list_files)} files have been listed.')
     if return_df==False:
         return list_files
     else:
