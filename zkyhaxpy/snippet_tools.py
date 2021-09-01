@@ -6,7 +6,7 @@ crop_snippet = [
     'import numpy as np',
     'import os',
     'import matplotlib.pyplot as plt',  
-    ''
+    '',
     'ln -s /home/james james'
 ]
 
@@ -16,7 +16,7 @@ def print_snippet(module):
 
     Available modules
     - crop    
-    
+
     '''
     if module=='crop':
         for txt in crop_snippet:
