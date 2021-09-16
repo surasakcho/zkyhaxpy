@@ -350,3 +350,47 @@ def check_all_files_exists(*args):
             return False
         
     return True
+
+
+def copy_if_not_exists(file_path, src_folder, if_many_source_files='error'):
+    '''
+    Check if a file is existing, if not, copy the file from the source folder.
+
+    inputs
+    ----------------------------------
+    file_path: str or path
+        a path of file to be checked
+    src_folder: str or path
+        a folder of source file to copy from
+    if_many_source_files: str
+        how to handle the process if there are many files with the same name in the source folder
+        'error': will stop this process with an assertion error
+        'first': will copy the first file found as the source file
+        'last': will copy the last file found as the source file
+    '''
+
+    assert(if_many_source_files in ['error', 'first', 'last'])
+
+    file_nm = os.path.basename(file_path)
+    if os.path.exists(file_path):
+        return
+    else:
+        list_src_files = get_list_files_re(src_folder, file_nm)
+        
+        if len(list_src_files)==0:
+            print('There is no source file found. Stop copying')
+            raise FileNotFoundError
+        elif len(list_src_files)==1:
+            shutil.copy2(list_src_files[0], file_path)                    
+        else:
+            if if_many_source_files=='error':
+                print('There are more than one source file found. Stop copying')
+                assert(len(list_src_files)==1)
+            elif if_many_source_files=='first':
+                shutil.copy2(list_src_files[0], file_path)                    
+            elif if_many_source_files=='last':
+                shutil.copy2(list_src_files[-1], file_path)                    
+        
+        print('File has been copied')
+        
+            
