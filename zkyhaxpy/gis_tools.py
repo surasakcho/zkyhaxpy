@@ -658,7 +658,7 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
 
 
 @jit(nopython=True)
-def __extract_values_from_2d_array_with_row_col_numba(arr_2d_value, arr_row_col):
+def extract_values_from_2d_array_with_row_col_numba(arr_2d_value, arr_row_col):
     '''
     Get pixel values for given 2d-array (1-band raster)
 
@@ -697,7 +697,7 @@ def __extract_values_from_3d_array_with_row_col_numba(arr_3d_value, arr_row_col)
 
     list_values = []
     for arr_2d_value in arr_3d_value:
-        list_values.append(__extract_values_from_2d_array_with_row_col_numba(arr_2d_value, arr_row_col))
+        list_values.append(extract_values_from_2d_array_with_row_col_numba(arr_2d_value, arr_row_col))
 
     return np.array(list_values).T
 
@@ -812,7 +812,7 @@ def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm,
         with rasterio.open(in_raster_path) as ds:
             arr_raster = ds.read(band_id)
 
-        arr_pixval_1d = __extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col_pixval[['row', 'col']].values)
+        arr_pixval_1d = extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col_pixval[['row', 'col']].values)
         df_polygon_row_col_pixval[col_nm] = np.where(arr_pixval_1d==nodata_val, np.nan, arr_pixval_1d)
 
     return df_polygon_row_col_pixval
@@ -868,7 +868,7 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
         with rasterio.open(raster_path) as ds:
             arr_raster = ds.read(in_target_raster_band_id)
 
-        arr_pixval_1d = __extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col_pixval[['row', 'col']].values)
+        arr_pixval_1d = extract_values_from_2d_array_with_row_col_numba(arr_raster, df_polygon_row_col_pixval[['row', 'col']].values)
         df_polygon_row_col_pixval[col_nm] = np.where(arr_pixval_1d==nodata_val, np.nan, arr_pixval_1d)
 
     return df_polygon_row_col_pixval
