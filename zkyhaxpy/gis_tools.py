@@ -804,6 +804,10 @@ def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm,
     #check no. of output columns equals to no. of raster files
     assert(len(in_list_out_col_nm) == len(in_list_target_raster_band_id))
 
+    #Convert input lists into list to prevent unexpected behavior if input lists are not really list.
+    in_list_out_col_nm = list(in_list_out_col_nm)
+    in_list_target_raster_band_id = list(in_list_target_raster_band_id)    
+
     df_polygon_row_col_pixval = get_df_row_col(in_s_polygon, in_raster_path)
     
     for i in tqdm(range(len(in_list_out_col_nm)), 'Getting pixel values...'):
@@ -846,6 +850,11 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
     '''
     #check no. of output columns equals to no. of raster files
     assert(len(in_list_out_col_nm) == len(in_list_raster_path))
+
+    #Convert input lists into list to prevent unexpected behavior if input lists are not really list.
+    in_list_raster_path = list(in_list_raster_path)
+    in_list_out_col_nm = list(in_list_out_col_nm)    
+
 
     #check all of given raster paths are having the same geo reference & transform
     tmp_raster_path = in_list_raster_path[0]   
