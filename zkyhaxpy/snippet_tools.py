@@ -9,8 +9,10 @@ crop_snippet = [
     'import matplotlib.pyplot as plt',  
     'import seaborn as sns',
     '',
-    '!ln -s /content/drive/MyDrive/!Surasak-PIER/Crop-Insurance/NDA-Data/vew_plant_info_official_polygon_disaster_all_rice_by_year /plant_info'
-
+    'colab_tools.mount_drive()',
+    '!ln -s /content/drive/MyDrive/!Surasak-PIER/Crop-Insurance/NDA-Data/vew_plant_info_official_polygon_disaster_all_rice_by_year /plant_info',    
+    '!ln -s /content/drive/MyDrive/!PIER /!PIER',
+    '!ln -s /content/drive/MyDrive/!Surasak-PIER/Crop-Insurance /Crop-Insurance',
 ]
 
 def print_snippet(module):
