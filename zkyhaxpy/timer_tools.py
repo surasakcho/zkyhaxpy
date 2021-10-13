@@ -16,6 +16,7 @@ class timer:
     def end(self):
         self.end_time = datetime.datetime.now()        
         print(f'End at: {self.end_time}')
+        self.elapsed_time = self.end_time - self.start_time
         print()
         self.show()
 
@@ -45,7 +46,7 @@ class timer:
                 [print(f'Lap {i+1} elapsed time: {curr_lap_elapsed_time}')]
             print(f'Lap {i+2} elapsed time: {self.end_time - prev_lap_time}')
             
-        print(f'Total elapsed time: {self.end_time - self.start_time}')
+        print(f'Total elapsed time: {self.elapsed_time}')
         print('###############################')
 
 timer_1 = timer('Test')
