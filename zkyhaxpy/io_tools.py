@@ -13,15 +13,18 @@ from distutils.dir_util import copy_tree
 
 
 
-def create_folders(path):
-    
-    basename = os.path.basename(path)
-    dirname = os.path.dirname(path)
-    
-    if '.' in basename:
-        os.makedirs(dirname, exist_ok=True)
-    else:
-        os.makedirs(path, exist_ok=True)        
+def create_folders(*args):
+    '''
+    Create folders for given path(s). 
+    '''
+    for path in args:
+        basename = os.path.basename(path)
+        dirname = os.path.dirname(path)
+        
+        if '.' in basename:
+            os.makedirs(dirname, exist_ok=True)
+        else:
+            os.makedirs(path, exist_ok=True)          
 
 
 def get_disk_free_space_mb(path = 'c:'):
