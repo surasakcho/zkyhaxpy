@@ -26,14 +26,3 @@ def print_snippet(module):
     if module=='crop':
         for txt in crop_snippet:
             print(txt)
-
-
-def print(module):
-    '''
-    Show snippet for specified module
-
-    Available modules
-    - crop    
-
-    '''
-    print_snippet(module)
