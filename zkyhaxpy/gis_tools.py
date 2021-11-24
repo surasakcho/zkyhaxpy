@@ -580,7 +580,7 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
 
 
 
-def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:4326'):
+def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:4326', all_touched=False):
     '''
     To get all row & col of pixels for given (single) polygon that located in given raster.
     Using not all touched as masking option. If no pixel is found, will get pixel that contains use polygon's centroid instead.
@@ -624,7 +624,7 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
         if tmp_polygon.geom_type=='Point':
             arr_row_col, _ = mask(tmp_ds, [tmp_polygon], crop=True, all_touched=True, nodata=nodata_val)    
         else:
-            arr_row_col, _ = mask(tmp_ds, [tmp_polygon], crop=True, all_touched=False, nodata=nodata_val)    
+            arr_row_col, _ = mask(tmp_ds, [tmp_polygon], crop=True, all_touched=all_touched, nodata=nodata_val)    
 
         arr_row_col = np.where(arr_row_col == nodata_val, np.nan, arr_row_col)
         arr_row_col = arr_row_col.reshape(2, -1).T
