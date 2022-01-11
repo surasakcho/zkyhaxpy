@@ -132,3 +132,66 @@ def convert_dtypes(in_df, in_dict_dtypes, default_dtype=None):
                 in_df[col_nm] = in_df[col_nm].astype(default_dtype)
             
     return in_df
+
+
+
+
+def optimize_dtypes(df, excluded_cols=None, only_int=True, allow_unsigned=False):
+    
+    '''
+    Optimize data type of each column to minimum size.
+    '''
+    df = df.copy()
+    
+    if excluded_cols:
+        assert(type(excluded_cols) == list)
+        list_cols = [col for col in df.columns if col not in excluded_cols]
+        
+    else:
+        list_cols = list(df.columns)
+
+ 
+
+    
+    if (only_int==True) :
+        list_cols = [col for col in list_cols if 'int' in str(df[col].dtype)]
+        
+        
+    for col in list_cols:
+        col_dtype_ori_str = str(df[col].dtype)        
+        col_max_val = df[col].max()
+        col_min_val = df[col].min()
+
+ 
+
+        if 'int' in col_dtype_ori_str:
+            if (col_min_val >= 0) & (allow_unsigned==True):
+                if col_max_val < 2**8:
+                    col_dtype_new = np.uint8
+                elif col_max_val < 2**16:
+                    col_dtype_new = np.uint16
+                elif col_max_val < 2**32:
+                    col_dtype_new = np.uint32
+                else:
+                    col_dtype_new = np.uint64                    
+                    
+            else:
+                if (col_max_val < 2**7) & (col_min_val >= -2**7):
+                    col_dtype_new = np.int8
+                elif (col_max_val < 2**15) & (col_min_val >= -2**15):
+                    col_dtype_new = np.int16
+                elif (col_max_val < 2**31) & (col_min_val >= -2**31):
+                    col_dtype_new = np.int32
+                else:
+                    col_dtype_new = np.int64
+                    
+            
+            assert(col_min_val == col_dtype_new(col_min_val))
+            assert(col_max_val == col_dtype_new(col_max_val))            
+            col_dtype_new_str = str(col_dtype_new).split("'")[1].split('.')[1]
+            if col_dtype_ori_str != col_dtype_new_str:
+                df[col] = df[col].astype(col_dtype_new)
+                print(f'Column "{col}": {col_dtype_ori_str} -> {col_dtype_new_str}')
+        else:
+            pass
+        
