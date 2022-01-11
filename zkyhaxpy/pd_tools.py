@@ -194,4 +194,5 @@ def optimize_dtypes(df, excluded_cols=None, only_int=True, allow_unsigned=False)
                 print(f'Column "{col}": {col_dtype_ori_str} -> {col_dtype_new_str}')
         else:
             pass
-        
+    
+    return df
