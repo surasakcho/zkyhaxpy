@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from IPython.display import display, HTML, display_html
 from tqdm.notebook import tqdm
 
