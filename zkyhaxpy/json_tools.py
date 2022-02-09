@@ -3,13 +3,14 @@ import json
 import os
 
 
-def read_dict_json(json_path):   
+def read_dict_json(json_path, print_result=False):   
     '''
     Read a json file into a dictionary.
     '''
     with open(json_path, 'r') as f:
         out_dict = json.load(f)
-    print(f'{json_path} has been loaded.')
+    if print_result:
+        print(f'{json_path} has been loaded.')
     return out_dict
 
 
