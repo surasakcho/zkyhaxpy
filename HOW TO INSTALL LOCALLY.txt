@@ -1,1 +1,1 @@
-pip install -e "D:\!PIER\DS-codes\zkyhaxpy"
+pip install -e "PATH\zkyhaxpy"
