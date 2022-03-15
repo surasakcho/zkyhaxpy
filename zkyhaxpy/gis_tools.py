@@ -173,7 +173,7 @@ def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', d
 
 
 
-def df_to_gdf(df, geometry):
+def df_to_gdf(df, geometry, drop_old_geom_col=True):
     '''
     INPUT 
     df : dataframe with a column containing geometry in wkt format
@@ -185,6 +185,8 @@ def df_to_gdf(df, geometry):
     df = df.copy()
     df['geometry'] = df[geometry].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, geometry='geometry', crs={'init' : 'epsg:4326'})
+    if drop_old_geom_col==True:
+        gdf = gdf.drop(columns=[geometry]).copy()
     return gdf
 
 
