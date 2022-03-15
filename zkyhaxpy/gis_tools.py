@@ -8,7 +8,7 @@ import datetime
 import os
 import subprocess
 from numba import jit
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 import tarfile
 import utm
 from osgeo import ogr, gdal, gdal_array, gdalconst
