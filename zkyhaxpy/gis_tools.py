@@ -173,7 +173,7 @@ def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', d
 
 
 
-def df_to_gdf(df, geometry, drop_old_geom_col=True):
+def df_to_gdf(df, geometry, drop_old_geom_col=False):
     '''
     INPUT 
     df : dataframe with a column containing geometry in wkt format
