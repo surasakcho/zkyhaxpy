@@ -1,11 +1,9 @@
 crop_snippet = [    
     '## if new envi, install these libs ##',
-    '!pip install rasterio utm geopandas piercrop',    
+    '#!pip install rasterio utm geopandas piercrop',    
     '',
     '## for all ##',
-    'from zkyhaxpy import io_tools, pd_tools, np_tools, console_tools, timer_tools, json_tools, dict_tools, gis_tools',
-    'from piercrop import pcode_tools',
-    '',    
+    'from zkyhaxpy import io_tools, pd_tools, np_tools, console_tools, timer_tools, json_tools, dict_tools',        
     'import pandas as pd',
     'import numpy as np',
     'from tqdm.notebook import tqdm',
