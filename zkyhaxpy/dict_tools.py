@@ -18,5 +18,3 @@ def map_dict(in_arr, in_dict, in_default=np.nan):
         out_arr = np.vectorize(in_dict.get)(in_arr, arr_default)
     
     return out_arr
-
-    return out_arr
