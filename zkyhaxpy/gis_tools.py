@@ -173,7 +173,7 @@ def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', d
 
 
 
-def df_to_gdf(df, geometry, drop_old_geom_col=False):
+def df_to_gdf(df, geometry, drop_old_geom_col=False, drop_z=True):
     '''
     INPUT 
     df : dataframe with a column containing geometry in wkt format
@@ -185,8 +185,17 @@ def df_to_gdf(df, geometry, drop_old_geom_col=False):
     df = df.copy()
     df['geometry'] = df[geometry].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, geometry='geometry', crs={'init' : 'epsg:4326'})
+    del(df)
     if drop_old_geom_col==True:
         gdf = gdf.drop(columns=[geometry]).copy()
+        
+    if drop_z==True:
+        if gdf['geometry'].has_z.sum() > 0:
+            gdf_has_z = gdf[gdf['geometry'].has_z]
+            for s_idx, s_row in tqdm(gdf_has_z.iterrows(), 'Removing Z axis...'):
+                gdf.loc[s_idx,'geometry'] = shapely.wkb.loads(shapely.wkb.dumps(s_row['geometry'], output_dimension=2))
+        
+        
     return gdf
 
 
