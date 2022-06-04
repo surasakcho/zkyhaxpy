@@ -894,3 +894,84 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
     return df_polygon_row_col_pixval
 
 
+def get_arr_rowcol_mapping_from_raster(raster_path):
+    '''
+    Get array of pixel row & col mapping from a given raster.
+    Return an array of 6 columns for row, col, lat_upper, lat_lower, lon_lower, lon_upper accordingly.
+    '''
+    assert(os.path.exists(raster_path))        
+    ds_mapping = create_row_col_mapping_raster(raster_path, out_mem=True )
+    (lon_col_0, lon_pix_size, _, lat_row_0, _, lat_pix_size) = ds_mapping.get_transform()
+    arr_mapping = ds_mapping.read()
+    arr_mapping = arr_mapping.T.reshape(-1, 2)
+    arr_lat_upper = lat_row_0 + (arr_mapping[:, 0] * lat_pix_size)
+    arr_lat_lower = lat_row_0 + ((arr_mapping[:, 0] + 1) * lat_pix_size)    
+    arr_lon_upper = lon_col_0 + ((arr_mapping[:, 1] + 1) * lon_pix_size)
+    arr_lon_lower = lon_col_0 + (arr_mapping[:, 1] * lon_pix_size)
+    arr_mapping = np.concatenate(
+        (
+            arr_mapping, 
+            arr_lat_upper.reshape(-1, 1),
+            arr_lat_lower.reshape(-1, 1),             
+            arr_lon_upper.reshape(-1, 1),
+            arr_lon_lower.reshape(-1, 1), 
+        ),
+        axis=1)
+    
+    return arr_mapping
+
+ 
+
+@jit(nopython=True)
+def __get_pixel_rowcol_from_latlon_numba(lat, lon, arr_mapping):
+    arr_pixel_row_col = arr_mapping[((arr_mapping[:, 2] >= lat ) & (arr_mapping[:, 3] < lat) & (arr_mapping[:, 4] >= lon ) & (arr_mapping[:, 5] < lon))]
+    if(len(arr_pixel_row_col)==1):
+        row, col = arr_pixel_row_col[0, 0:2]
+        row = int(row)
+        col = int(col)
+    return row, col
+
+ 
+
+
+def get_pixel_rowcol_from_latlon(lat, lon, df_mapping=None, raster_path=None, arr_mapping=None, check_format=False):
+    '''
+    Get pixel row & col idx of a lat lon from a mapping dataframe or a raster or an arr
+    '''
+    assert((type(df_mapping)==pd.DataFrame) or (type(raster_path)==str) or (type(arr_mapping) == np.ndarray))
+    if type(df_mapping)==pd.DataFrame:
+        assert(type(raster_path)==type(None))
+        assert(type(arr_mapping)==type(None))      
+        
+        if check_format==True:
+            assert(set(df_mapping.columns.to_list()) == set(['row', 'col', 'lat_upper', 'lat_lower', 'lon_lower', 'lon_upper']))        
+            
+        df_pixel = df_mapping[(df_mapping['lat_upper'] >= lat) & (df_mapping['lat_lower'] < lat) & (df_mapping['lon_upper'] >= lon) & (df_mapping['lon_lower'] < lon)]
+        if len(df_pixel)==1:
+            row = int(df_pixel.iloc[0]['row'])
+            col = int(df_pixel.iloc[0]['col'])
+        else:
+            row = -999
+            col = -999
+        return row, col
+    elif type(raster_path)==str:
+        
+        arr_mapping = get_arr_rowcol_mapping_from_raster(raster_path)
+        return get_pixel_rowcol_from_latlon(lat, lon, arr_mapping=arr_mapping)
+    
+    elif type(arr_mapping) == np.ndarray:
+        if check_format==True:
+            assert(arr_mapping[:, 2:4].min() >= -90) #range of lat
+            assert(arr_mapping[:, 2:4].max() <= 90) #range of lat
+            assert(arr_mapping[:, 4:6].min() >= -180) #range of lon
+            assert(arr_mapping[:, 4:6].max() <= 180) #range of lon
+
+ 
+
+#         arr_pixel_row_col = arr_mapping[((arr_mapping[:, 2] >= lat ) & (arr_mapping[:, 3] < lat) & (arr_mapping[:, 4] >= lon ) & (arr_mapping[:, 5] < lon))]
+#         if(len(arr_pixel_row_col)==1):
+#             row, col = arr_pixel_row_col[0, 0:2]
+#             row = int(row)
+#             col = int(col)
+#         return row, col
+        return __get_pixel_rowcol_from_latlon_numba(lat, lon, arr_mapping)
