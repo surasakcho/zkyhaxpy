@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from IPython.display import display, HTML, display_html
 from tqdm.notebook import tqdm
+import os
+import io_tools
 
 def auto_adjust():
     '''
@@ -100,12 +102,20 @@ def get_curr_colwidth():
 
 
         
-def read_parquets(list_file_path, columns='all'):
+def read_parquets(file_paths, columns='all'):
     '''
 
     Read multiple parquet files of the same template into a single pandas dataframe.
+    File paths can be a list of file paths or a regular expression of file paths.
 
 	'''
+    
+    if type(file_paths) == list:
+        list_file_path = file_paths
+    else:
+        folder = os.path.dirname(file_paths)
+        filename = os.path.basename(file_paths)
+        list_file_path = io_tools.get_list_files_re(folder, filename)
     
     list_df = []
     for file_path in tqdm(list_file_path, 'reading parquets...'):
