@@ -3,7 +3,7 @@ import numpy as np
 from IPython.display import display, HTML, display_html
 from tqdm.notebook import tqdm
 import os
-import io_tools
+from zkyhaxpy import io_tools
 
 def auto_adjust():
     '''
