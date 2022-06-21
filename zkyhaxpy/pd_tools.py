@@ -102,7 +102,7 @@ def get_curr_colwidth():
 
 
         
-def read_parquets(file_paths, columns='all'):
+def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns='all'):
     '''
 
     Read multiple parquet files of the same template into a single pandas dataframe.
@@ -112,10 +112,12 @@ def read_parquets(file_paths, columns='all'):
     
     if type(file_paths) == list:
         list_file_path = file_paths
-    else:
+    elif type(file_paths) == str:
         folder = os.path.dirname(file_paths)
         filename = os.path.basename(file_paths)
         list_file_path = io_tools.get_list_files_re(folder, filename)
+    else:
+        list_file_path = io_tools.get_list_files_re(root_folder, filename_re=filename_re, folder_re=folder_re)
     
     list_df = []
     for file_path in tqdm(list_file_path, 'reading parquets...'):
