@@ -93,10 +93,11 @@ def ftp_download(ftp_conn, ftp_path, out_path, skip_exist=True, delete_failed_fi
         with open(out_path, 'wb') as fp:                
             ftp_conn.retrbinary(f'RETR {ftp_path}', fp.write)
             print(f'{ftp_path} has been downloaded.')
-    except Exception e:
+    except Exception as e:
         if (delete_failed_file==True) & (os.path.exists(out_path)==True):
             print(e)
             os.remove(out_path)
+            raise e
         
     
 
