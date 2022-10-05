@@ -1,5 +1,5 @@
 import ftplib
-from ftplib import FTP
+from ftplib import FTP, FTP_TLS
 import sys
 import os
 import pandas as pd
@@ -8,13 +8,14 @@ from tqdm.notebook import tqdm
 from zkyhaxpy.io_tools import create_folders
 
 
-def ftp_connection(ftp_address, user, password):
+def ftp_connection(ftp_address, user, password, use_tls=False ):
     '''
     Create a FTP connection
 	'''
-    
-    ftp_conn = FTP(ftp_address)  # connect to host, default port
-    #ftp.connect(port=21)       
+    if use_tls == False:
+        ftp_conn = FTP(ftp_address)  # connect to host, default port
+    else:
+        ftp_conn = FTP_TLS(ftp_address)  # connect to host, default port
     ftp_conn.login(user=user, passwd=password)# user anonymous, passwd anonymous@
 
 
