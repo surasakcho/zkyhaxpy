@@ -126,7 +126,7 @@ def resample_raster(path_file_input, path_file_output, upscale_factor = 0.25, re
     if resampling == 'bilinear':
         resampling = rasterio.enums.Resampling.bilinear
     
-    with rasterio.open(path_file) as dataset:
+    with rasterio.open(path_file_input) as dataset:
         
         profile_resample = dataset.profile
 
