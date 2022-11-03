@@ -115,6 +115,55 @@ def extract_bits(img, position):
     
 
 
+def resample_raster(path_file_input, path_file_output, upscale_factor = 0.25, resampling='bilinear'):
+    '''
+    Resample a raster of one resolution into another resolution with the same projection.
+    If upscale_factor > 1, upscaling will be performed.
+    If upscale_factor < 1, downscaling will be performed.
+    '''
+    assert(upscale_factor > 0)
+
+    if resampling == 'bilinear':
+        resampling = rasterio.enums.Resampling.bilinear
+    
+    with rasterio.open(path_file) as dataset:
+        
+        profile_resample = dataset.profile
+
+        # resample data to target shape
+        arr_resample = dataset.read(
+            out_shape=(
+                dataset.count,
+                int(dataset.height * upscale_factor),
+                int(dataset.width * upscale_factor)
+            ),
+            resampling=resampling
+        )
+
+        # scale image transform
+        n_bands, h_resample, w_resample = arr_resample.shape
+        transform = dataset.transform * dataset.transform.scale(
+            (dataset.width / arr_resample.shape[-1]),
+            (dataset.height / arr_resample.shape[-2])
+        )
+
+        profile_resample.update({
+            'transform':transform,
+            'width':w_resample,
+            'height':h_resample,
+        })
+
+
+    with rasterio.open(path_file_output, mode='w', **profile_resample) as dst:
+        for i in range(n_bands):
+            dst.write(arr_resample[i], i+1)
+
+    print(f'{path_file_output} has been created.')
+    
+    
+    
+
+
 
 def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', driver_nm='GTiff'):
     '''
@@ -199,17 +248,44 @@ def df_to_gdf(df, geometry, drop_old_geom_col=False, drop_z=True):
     return gdf
 
 
-
-def shape_to_raster(in_shp, out_tif, ref_tif):
+def shape_to_raster(in_shp, out_tif, ref_tif, no_data=0, all_touched=False, attribute=None, burn_val=1, datatype=gdal.GDT_Byte):
     #Code by PongporC 23/Jan/2020
+    #Modified by Surasak C.
+   
+   
     '''
-    params
+    Rasterize a shape file into GeoTiff file.
+   
+    inputs
     ----------------------------------
-    in_shp : path of input shapefile
-    out_tif : path of output tif
-    ref_tif : path of reference tif 
+    in_shp :
+        path of input shapefile
+       
+    out_tif :
+        path of output tif
+       
+    ref_tif :
+        path of reference tif
+       
+    no_data :
+        value for no data
+       
+    all_touched :
+        True or False
+       
+    attribute :
+        a column name in the shape file to be rasterized
+       
+    burn_val :
+        value to be filled in raster if no attribute is provided
+       
+    datatype :
+        gdal's datatype
+      
     '''
 
+    if attribute:
+        burn_val = None
 
     InputVector = in_shp
     OutputImage = out_tif
@@ -217,8 +293,9 @@ def shape_to_raster(in_shp, out_tif, ref_tif):
     RefImage = ref_tif
 
     gdalformat = 'GTiff'
-    datatype = gdal.GDT_Byte
-    burnVal = 1 #value for the output image pixels
+   
+           
+       
     ##########################################################
     # Get projection info from reference image
     Image = gdal.Open(RefImage, gdal.GA_ReadOnly)
@@ -227,16 +304,25 @@ def shape_to_raster(in_shp, out_tif, ref_tif):
     Shapefile = ogr.Open(InputVector)
     Shapefile_layer = Shapefile.GetLayer()
 
-    # Rasterise
-    print("Rasterising shapefile...")
+    # Rasterize
+    print("Rasterizing shapefile...")
     Output = gdal.GetDriverByName(gdalformat).Create(OutputImage, Image.RasterXSize, Image.RasterYSize, 1, datatype, options=['COMPRESS=DEFLATE'])
     Output.SetProjection(Image.GetProjectionRef())
-    Output.SetGeoTransform(Image.GetGeoTransform()) 
+    Output.SetGeoTransform(Image.GetGeoTransform())
 
     # Write data to band 1
     Band = Output.GetRasterBand(1)
-    Band.SetNoDataValue(0)
-    gdal.RasterizeLayer(Output, [1], Shapefile_layer, burn_values=[burnVal])
+    Band.SetNoDataValue(no_data)
+   
+   
+   
+    if attribute:
+        options=[f"ATTRIBUTE={attribute}", f"ALL_TOUCHED={str(all_touched).upper()}"]
+        gdal.RasterizeLayer(Output, [1], Shapefile_layer, options=options)   
+    else:
+        options=[f"ALL_TOUCHED={str(all_touched).upper()}"]
+        gdal.RasterizeLayer(Output, [1], Shapefile_layer, burn_values=[burn_val], options=options)   
+   
 
     # Close datasets
     Band = None
