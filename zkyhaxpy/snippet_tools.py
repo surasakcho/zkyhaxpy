@@ -8,11 +8,16 @@ crop_snippet = [
     'import numpy as np',
     'from tqdm.notebook import tqdm',
     'import os',
+    'import shutil',
     'import matplotlib.pyplot as plt',  
     'import seaborn as sns',
+    
     '',
-    '## for gis tasks##'    
+    '## for gis tasks##',
     'from zkyhaxpy import gis_tools',
+    'import geopandas as gpd',
+    'import rasterio',
+    
     '',
     '## for colab ##',
     'from zkyhaxpy import colab_tools',
