@@ -9,6 +9,7 @@ crop_snippet = [
     'from tqdm.notebook import tqdm',
     'import os',
     'import shutil',
+    'import re',
     'import matplotlib.pyplot as plt',  
     'import seaborn as sns',
     

@@ -2,6 +2,7 @@ import logging
 import boto3
 from botocore.exceptions import ClientError
 import os
+import re
 
 def upload_file(file_name, bucket, object_name=None):
     """
@@ -48,6 +49,6 @@ def get_list_of_objects(bucket_name, object_regex='.*'):
     list_objects = []
     for my_bucket_object in my_bucket.objects.all():
         object_key = my_bucket_object.key
-        result = re.match(pattern_regex, object_key)
+        result = re.match(object_regex, object_key)
         if result:
             list_objects.append(object_key)    
