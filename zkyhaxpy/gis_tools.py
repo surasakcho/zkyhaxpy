@@ -1,24 +1,24 @@
 #Authored by : Pongporamat C. 
 #Updated by Surasak C.
 
-from pandas import DataFrame
+
 import numpy as np
 import pandas as pd
-import datetime
+import uuid
+import shutil
+
+
 import os
 import subprocess
 from numba import jit
 from tqdm.notebook import tqdm
-import tarfile
+
 import utm
 from osgeo import ogr, gdal, gdal_array, gdalconst
 import geopandas as gpd
 import shapely
 from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon, mapping
-
-import uuid 
-
 import rasterio
 from rasterio import Affine, transform
 from rasterio.features import rasterize
@@ -27,11 +27,11 @@ from rasterio.io import MemoryFile
 import pyproj
 from pyproj import Proj, CRS
 
-import skimage
 from skimage import filters, exposure
 from skimage.io import imsave
-
 import matplotlib.pyplot as plt
+
+import io_tools
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -614,7 +614,7 @@ def create_row_col_arr(in_shape):
 
 
 
-def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None, out_nodata_value = -1000):
+def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None, out_nodata_value = -1000, **kwargs):
     '''
     Create row & col mapping of given raster. Output can be either an actual file or an on-memory file (rasterio's dataset).
     
@@ -628,8 +628,13 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
 
     out_mem: True or False
         if True, return as a memory file's dataset
-
+    
     '''
+
+    if 'tmp_folder' in kwargs.keys():
+        tmp_folder=kwargs['tmp_folder']
+    else:
+        tmp_folder = None
 
     if type(in_raster) != rasterio.io.DatasetReader:
         tmp_ds = rasterio.open(in_raster, 'r')
@@ -645,7 +650,9 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
             count=2,
             compress='lzw',
             nodata=out_nodata_value)
+
         if out_raster_path:
+            io_tools.create_folders(out_raster_path)
             with rasterio.open(out_raster_path, 'w', **profile) as dst:
                 #row
                 dst.write(tmp_arr_row_col[0], 1)
@@ -654,9 +661,31 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
                 #col
                 dst.write(tmp_arr_row_col[1], 2)
                 dst.set_band_description(2, 'col')
-
             print(f'{out_raster_path} has been created')
+            return out_raster_path
 
+            
+        elif out_mem==False & out_raster_path==None:
+            if tmp_folder==None:                                                
+                if os.path.exists('/tmp'):
+                    out_raster_folder = os.path.join('/tmp', uuid.uuid4().hex)
+                else:
+                    out_raster_folder = os.path.join('c:', 'tmp', uuid.uuid4().hex)
+            else:                
+                out_raster_folder = os.path.join(tmp_folder, uuid.uuid4().hex)
+            out_raster_path = os.path.join(out_raster_folder, f'rowcol_map_{os.path.basename(in_raster)}')
+            io_tools.create_folders(out_raster_path)
+            with rasterio.open(out_raster_path, 'w', **profile) as dst:
+                #row
+                dst.write(tmp_arr_row_col[0], 1)
+                dst.set_band_description(1, 'row')
+
+                #col
+                dst.write(tmp_arr_row_col[1], 2)
+                dst.set_band_description(2, 'col')
+            print(f'{out_raster_path} has been created')
+            return out_raster_path
+            
         elif out_mem==True:
             memfile = MemoryFile()
             ds_mem = memfile.open( **profile)
@@ -738,13 +767,16 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
         assert(len(arr_row_col) > 0)
         is_polygon_overlap = True
         nbr_pixels = len(arr_row_col)
-
+        tmp_ds.close()
+        del(tmp_ds)
     except Exception as e:
         #If input polygon does not overlap the raster, return nan for row & col
         if str(e) == 'Input shapes do not overlap raster.':
             is_polygon_overlap = False    
             arr_row_col = np.array([[np.nan, np.nan]])    
             nbr_pixels = 0
+            tmp_ds.close()
+            del(tmp_ds)
         else:
             raise(e)
     
@@ -829,7 +861,7 @@ def __reformat_list_row_col_for_df(in_list_polygon_id, in_list_arr_row_col):
 
 
 
-def get_df_row_col(in_s_polygon, in_raster_path):
+def get_df_row_col(in_s_polygon, in_raster_path, **kwargs):
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry).
 
@@ -847,20 +879,22 @@ def get_df_row_col(in_s_polygon, in_raster_path):
 
     '''
 
-   
-    #Create temp on-memory dataset
-    ds_mem_rowcol_raster = create_row_col_mapping_raster(in_raster_path, out_mem=True)
+    #Create row col mappint raster
+    path_row_col_map_raster = kwargs.get('path_row_col_map_raster')        
+    path_ds_mapping = create_row_col_mapping_raster(in_raster_path, path_row_col_map_raster)
+    
 
     #getting row-col from on-memory row-col raster
     list_arr_row_col = []    
     list_polygon_id = []    
     
     for polygon_id, tmp_polygon in tqdm(in_s_polygon.iteritems(), 'Getting row&col of pixels...', total=len(in_s_polygon)):
-        is_polygon_overlap, nbr_pixels, arr_row_col = get_pix_row_col(tmp_polygon, ds_mem_rowcol_raster)
+        is_polygon_overlap, nbr_pixels, arr_row_col = get_pix_row_col(tmp_polygon, path_ds_mapping)
         if is_polygon_overlap:
             list_polygon_id.append(polygon_id)
             list_arr_row_col.append(arr_row_col)
-    
+        
+    shutil.rmtree(os.path.dirname(path_ds_mapping))
     arr_polygon_id, arr_row, arr_col = __reformat_list_row_col_for_df(list_polygon_id, list_arr_row_col)
     list_data = zip(arr_polygon_id, arr_row, arr_col)
     out_df_polygon_row_col = pd.DataFrame(list_data, columns=[in_s_polygon.index.name, 'row', 'col'])
@@ -872,7 +906,7 @@ def get_df_row_col(in_s_polygon, in_raster_path):
 
 
 
-def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm, in_list_target_raster_band_id, nodata_val=-999):
+def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm, in_list_target_raster_band_id, nodata_val=-999, **kwargs):
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry) from single raster file with one or more bands.
 
@@ -919,7 +953,7 @@ def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm,
     return df_polygon_row_col_pixval
 
 
-def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_col_nm, in_target_raster_band_id=1, nodata_val=-999, check_raster_consistent=True):
+def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_col_nm, in_target_raster_band_id=1, nodata_val=-999, check_raster_consistent=True, **kwargs) :
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry) from multiple raster files with the same geo reference.
 
@@ -986,9 +1020,12 @@ def get_arr_rowcol_mapping_from_raster(raster_path):
     Return an array of 6 columns for row, col, lat_upper, lat_lower, lon_lower, lon_upper accordingly.
     '''
     assert(os.path.exists(raster_path))        
-    ds_mapping = create_row_col_mapping_raster(raster_path, out_mem=True )
+    ds_mapping = create_row_col_mapping_raster(raster_path, out_mem=False)
+
     (lon_col_0, lon_pix_size, _, lat_row_0, _, lat_pix_size) = ds_mapping.get_transform()
     arr_mapping = ds_mapping.read()
+    ds_mapping = None
+
     arr_mapping = arr_mapping.T.reshape(-1, 2)
     arr_lat_upper = lat_row_0 + (arr_mapping[:, 0] * lat_pix_size)
     arr_lat_lower = lat_row_0 + ((arr_mapping[:, 0] + 1) * lat_pix_size)    
