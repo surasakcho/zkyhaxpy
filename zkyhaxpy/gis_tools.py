@@ -31,7 +31,7 @@ from skimage import filters, exposure
 from skimage.io import imsave
 import matplotlib.pyplot as plt
 
-import io_tools
+from zkyhaxpy import io_tools
 
 np.seterr(divide='ignore', invalid='ignore')
 
