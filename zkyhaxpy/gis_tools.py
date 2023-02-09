@@ -665,7 +665,7 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
             return out_raster_path
 
             
-        elif out_mem==False & out_raster_path==None:
+        elif (out_mem==False) & (out_raster_path==None):
             if tmp_folder==None:                                                
                 if os.path.exists('/tmp'):
                     out_raster_folder = os.path.join('/tmp', uuid.uuid4().hex)
