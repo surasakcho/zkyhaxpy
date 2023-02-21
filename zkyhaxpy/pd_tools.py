@@ -4,6 +4,7 @@ from IPython.display import display, HTML, display_html
 from tqdm.notebook import tqdm
 import os
 from zkyhaxpy import io_tools
+import dask.dataframe as dd
 
 def auto_adjust():
     '''
@@ -102,11 +103,12 @@ def get_curr_colwidth():
 
 
         
-def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns='all'):
+def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns=None, print_count=False, engine='auto', auto_dask=True, auto_dask_min_files=100, use_dask=None):
     '''
 
     Read multiple parquet files of the same template into a single pandas dataframe.
     File paths can be a list of file paths or a regular expression of file paths.
+    This function is also implemented Dask's Dataframe to read files automatically when there are more than 100 files. (can be configured with parameters)
 
 	'''
     
@@ -115,19 +117,26 @@ def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re
     elif type(file_paths) == str:
         folder = os.path.dirname(file_paths)
         filename = os.path.basename(file_paths)
-        list_file_path = io_tools.get_list_files_re(folder, filename)
+        list_file_path = io_tools.get_list_files(folder, filename, print_count=print_count)
     else:
-        list_file_path = io_tools.get_list_files_re(root_folder, filename_re=filename_re, folder_re=folder_re)
+        list_file_path = io_tools.get_list_files(root_folder, filename_re=filename_re, folder_re=folder_re, print_count=print_count)
     
-    list_df = []
-    for file_path in tqdm(list_file_path, 'reading parquets...'):
-        if columns=='all':
-            list_df.append(pd.read_parquet(file_path))
+
+    if use_dask == None:
+        if (auto_dask == True) & (len(list_file_path) >= auto_dask_min_files):
+            use_dask = True
         else:
-            list_df.append(pd.read_parquet(file_path, columns=columns))
+            use_dask = False
+
+    if use_dask==True:
+        print(f'Reading {len(list_file_path)} files using dask')
+        df = dd.read_parquet(list_file_path, columns=columns, engine=engine).compute()
+    else:
+        list_df = []
+        for file_path in tqdm(list_file_path, 'reading parquets...'):        
+            list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
+        df = pd.concat(list_df)
         
-    df = pd.concat(list_df)
-    
     return df
 
 

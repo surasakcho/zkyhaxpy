@@ -87,7 +87,7 @@ def write_pickle(data, out_pickle_path, overwrite=True):
          
          
          
-def get_list_files(rootpath, filename_re=None, folder_re=None, return_df=False ):
+def get_list_files(rootpath, filename_re=None, folder_re=None, return_df=False, print_count=True ):
     '''
     rootpath : root path to lookup files
     filename_re : regular expression to search for filename
@@ -108,7 +108,9 @@ def get_list_files(rootpath, filename_re=None, folder_re=None, return_df=False )
             if ((re.search(filename_re, file) != None) & (re.search(folder_re, folder) != None)):
                 list_files.append(os.path.join(folder, file))
     
-    print(f'Total of {len(list_files)} files have been listed.')
+    if print_count==True:
+        print(f'Total of {len(list_files)} files have been listed.')
+        
     if return_df==False:
         return list_files
     else:
