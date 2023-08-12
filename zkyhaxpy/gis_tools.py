@@ -233,7 +233,7 @@ def df_to_gdf(df, geometry, drop_old_geom_col=False, drop_z=True):
     '''
     df = df.copy()
     df['geometry'] = df[geometry].apply(wkt.loads)
-    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs={'init' : 'epsg:4326'})
+    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs='epsg:4326')
     del(df)
     if drop_old_geom_col==True:
         gdf = gdf.drop(columns=[geometry]).copy()
