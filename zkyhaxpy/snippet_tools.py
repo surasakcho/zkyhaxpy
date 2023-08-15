@@ -14,6 +14,7 @@ crop_snippet = [
     'import re',
     'import matplotlib.pyplot as plt',  
     'import seaborn as sns',
+    'from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union, overload',
     '',
     '## for gis tasks##',
     'from zkyhaxpy import gis_tools',
