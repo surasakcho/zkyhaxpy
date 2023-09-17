@@ -6,11 +6,30 @@ import os
 import logging
 import numpy as np
 import pandas as pd
+import socket
+
+
+def setup_logger(path_log, log_name):
+    '''
+    Setup logger in format <time>|<job_name>|<log_level>|<pc_name>|<message> that write log into specified path
+    '''
+    logger = logging.getLogger(log_name)
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(filename=path_log, mode='a')
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|{}|%(message)s'.format(socket.gethostname()), datefmt='%y-%m-%d %H:%M:%S')             
+    handler.setFormatter(formatter)
+    logger.handlers.clear()
+    logger.addHandler(handler)
+
+    return logger
+
 
 def get_logger(log_name, log_path, log_columns, log_level='debug', log_sep='|'):
     '''
     Create a logger using file_handler.
     '''
+    FutureWarning("This function is deprecated. Consider using 'setup_logger' instead.")
 
     assert(type(log_sep)==str)
     
