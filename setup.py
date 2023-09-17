@@ -1,11 +1,17 @@
 import setuptools
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+PACKAGE_NAME = 'zkyhaxpy'
+VERSION = '0.3.0.3.6'
+
+with open("README.md", "r") as f:
+    long_description = f.read()
+
+with open(f"{PACKAGE_NAME}\__init__.py", "w") as f:
+    f.write(f"__version__ = '{VERSION}'")
 
 setuptools.setup(
-    name="zkyhaxpy", # Replace with your own username
-    version="0.3.0.3.4",
+    name=PACKAGE_NAME,
+    version=VERSION,
     author="Surasak Choedpasuporn",
     author_email="surasak.cho@gmail.com",
     description="A swiss-knife Data Science package for python",
