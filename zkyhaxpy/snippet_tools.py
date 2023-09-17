@@ -5,7 +5,7 @@ crop_snippet = [
     'parser = SafeConfigParser()',
     'parser.read(path_config)',    
     '',
-    'from zkyhaxpy import io_tools, pd_tools, np_tools, console_tools, timer_tools, json_tools, dict_tools',        
+    'from zkyhaxpy import io_tools, pd_tools, np_tools, console_tools, timer_tools, json_tools, dict_tools, log_tools',        
     'import pandas as pd',
     'import numpy as np',
     'from tqdm.notebook import tqdm',
