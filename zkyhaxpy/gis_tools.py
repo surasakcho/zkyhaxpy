@@ -670,9 +670,10 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
                 if os.path.exists('/tmp'):
                     out_raster_folder = os.path.join('/tmp', uuid.uuid4().hex)
                 else:
-                    out_raster_folder = os.path.join('c:', 'tmp', uuid.uuid4().hex)
+                    out_raster_folder = os.path.join('c:/', 'tmp', uuid.uuid4().hex)
             else:                
                 out_raster_folder = os.path.join(tmp_folder, uuid.uuid4().hex)
+            
             out_raster_path = os.path.join(out_raster_folder, f'rowcol_map_{os.path.basename(in_raster)}')
             io_tools.create_folders(out_raster_path)
             with rasterio.open(out_raster_path, 'w', **profile) as dst:
