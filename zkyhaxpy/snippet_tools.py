@@ -1,7 +1,7 @@
 crop_snippet = [        
     '## for all ##',    
     "path_config = PATH",
-    'from ConfigParser import SafeConfigParser',
+    'from configparser import SafeConfigParser',
     'parser = SafeConfigParser()',
     'parser.read(path_config)',    
     '',
