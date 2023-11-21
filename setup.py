@@ -1,7 +1,7 @@
 import setuptools
 
 PACKAGE_NAME = 'zkyhaxpy'
-VERSION = '0.3.0.4.0'
+VERSION = '0.3.0.4.1'
 
 with open("README.md", "r") as f:
     long_description = f.read()
