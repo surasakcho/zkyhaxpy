@@ -1099,3 +1099,71 @@ def get_pixel_rowcol_from_latlon(lat, lon, df_mapping=None, raster_path=None, ar
 #             col = int(col)
 #         return row, col
         return __get_pixel_rowcol_from_latlon_numba(lat, lon, arr_mapping)
+    
+    
+
+def convert_hdf_to_geotiff(
+    path_in, path_out, subds,
+    ):
+    '''
+    Convert one band of one subdataset from a HDF4 (ex. MODIS) into GeoTiff file.
+        
+    params
+    ----------
+    path_in: str or path-like
+        A path of input HDF file
+    path_out: str or path-like
+        A path of input GeoTiff file
+    subds: str
+        Target subdataset to extract (ex. "grid1km:Optical_Depth_055")
+
+        
+    returns
+    ---------
+    result: int
+        0 = ok, otherwise failed
+    '''
+    
+    srcfile = f'HDF4_EOS:EOS_GRID:"{path_in}":{subds}' 
+    gdal_cmd = f"gdal_translate -of GTiff {srcfile} {path_out}"
+    print(gdal_cmd)
+    return os.system(gdal_cmd)    
+
+
+
+def get_qa_val_cloud_clear_flag(qa_val, tup_cloud_bits_idx, str_cloud_clear, nodata):
+    '''
+    Get cloud clear flag of given QA value.
+    
+    params
+    ---------
+    qa_val: numeric
+        Pixel value of QA
+    tup_cloud_bits_idx: tuple()
+        A tuple to idx to extract bits from binary str. This identifier will work backward. Meaning getting first 3 digits will actually last 3 digits of binary string. For example, if binary string = '0b000100' and tup_cloud_bits_idx = (0, 3), it will get bit from backward and result will be '001'.        
+    str_cloud_clear: str
+        A string of bits that mean no cloud. This value can be get from Satellite data provider's document of the product. Do not reverse this value.
+    nodata: numeric
+        A value specify pixel value is N/A
+    
+    For more information, see https://atmosphere-imager.gsfc.nasa.gov/sites/default/files/ModAtmo/QA_Plan_C61_Master_2017_03_15.pdf
+    
+    Return
+    ---------       
+        - True if it is cloud clear.
+        - False if it is not cloud clear.
+        - NaN if N/A
+    '''    
+    if qa_val==nodata:
+        return np.nan
+
+    str_bin = bin(qa_val)
+    
+    if tup_cloud_bits_idx[0] > 0:
+        
+        str_nbits = str_bin[-tup_cloud_bits_idx[1]:-tup_cloud_bits_idx[0]]
+    else:    
+        str_nbits = str_bin[-tup_cloud_bits_idx[1]:]
+        
+    return str_nbits==str_cloud_clear
+    
