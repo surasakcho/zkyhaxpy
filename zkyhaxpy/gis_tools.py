@@ -1099,3 +1099,180 @@ def get_pixel_rowcol_from_latlon(lat, lon, df_mapping=None, raster_path=None, ar
 #             col = int(col)
 #         return row, col
         return __get_pixel_rowcol_from_latlon_numba(lat, lon, arr_mapping)
+    
+    
+
+def convert_hdf_to_geotiff(
+    path_in, path_out, subds,
+    ):
+    '''
+    Convert one band of one subdataset from a HDF4 (ex. MODIS) into GeoTiff file.
+        
+    params
+    ----------
+    path_in: str or path-like
+        A path of input HDF file
+    path_out: str or path-like
+        A path of input GeoTiff file
+    subds: str
+        Target subdataset to extract (ex. "grid1km:Optical_Depth_055")
+
+        
+    returns
+    ---------
+    result: int
+        0 = ok, otherwise failed
+    '''
+    
+    srcfile = f'HDF4_EOS:EOS_GRID:"{path_in}":{subds}' 
+    gdal_cmd = f"gdal_translate -of GTiff {srcfile} {path_out}"    
+    return os.system(gdal_cmd)    
+
+
+
+def get_qa_val_cloud_clear_flag(qa_val, tup_cloud_bits_idx, str_cloud_clear, qa_total_bits, nodata, ):
+    '''
+    Get cloud clear flag of given QA value.
+    
+    params
+    ---------
+    qa_val: numeric
+        Pixel value of QA
+    tup_cloud_bits_idx: tuple()
+        A tuple to idx to extract bits from binary str. This identifier will work backward. Meaning getting first 3 digits will actually last 3 digits of binary string. For example, if binary string = '0b000100' and tup_cloud_bits_idx = (0, 3), it will get bit from backward and result will be '001'.        
+    str_cloud_clear: str
+        A string of bits that mean no cloud. This value can be get from Satellite data provider's document of the product. Do not reverse this value.
+    qa_total_bits: int
+        No. of bits for qa
+    nodata: numeric
+        A value specify pixel value is N/A
+    
+    For more information, see https://atmosphere-imager.gsfc.nasa.gov/sites/default/files/ModAtmo/QA_Plan_C61_Master_2017_03_15.pdf
+    
+    Return
+    ---------       
+        - 1 if it is cloud clear.
+        - 0 if it is not cloud clear.
+        - -9 if N/A
+    '''    
+    if qa_val==nodata:
+        return -9
+
+    str_bin = bin(qa_val)[2:].zfill(qa_total_bits)
+    
+    if tup_cloud_bits_idx[0] > 0:
+        
+        str_nbits = str_bin[-tup_cloud_bits_idx[1]:-tup_cloud_bits_idx[0]]
+    else:    
+        str_nbits = str_bin[-tup_cloud_bits_idx[1]:]
+        
+    return int(str_nbits==str_cloud_clear)
+    
+    
+def get_arr_cloud_clear_f(
+    path_in_qa,
+    band_id_qa,
+    tup_cloud_bits_idx, 
+    str_cloud_clear,
+    qa_total_bits,
+    nodata_qa=0
+):
+    '''
+    Get an array of cloud clear flag from given qa raster.
+    
+    params
+    ----------
+    paht_in_qa - str or path
+        A path of QA raster
+    tup_cloud_bits_idx - tuple
+        A tuple of bits identifier index for QA band that can identify cloud. If first 3 digits, tup_cloud_bits_idx should be (0, 3). Get this value from product manual.
+    str_cloud_clear - str
+        A string of cloud bits that means cloud clear. Get this value from product manual.        
+    nodata_qa - numeric
+        A value that means QA pixel is N/A. Default is 0.
+        
+    returns
+    ----------
+    arr_cloud_clear_f - numpy array (m, n)
+        An array of cloud clear flag. 1 = cloud clear pixel, 0 = cloudy pixel, NaN = N/A
+    '''
+    with rasterio.open(path_in_qa) as ds:    
+        arr_qa = ds.read(band_id_qa)
+            
+    #Array of cloud clear flag
+    dict_qa_cloud_clear = {qa_val:get_qa_val_cloud_clear_flag(qa_val, tup_cloud_bits_idx, str_cloud_clear, qa_total_bits, nodata_qa) for qa_val in np.unique(arr_qa)}
+    
+    
+    return np.vectorize(dict_qa_cloud_clear.get)(arr_qa)
+
+
+
+def extract_cloudless_band(
+    path_in_target, 
+    path_in_qa,     
+    band_id_target, 
+    band_id_qa,     
+    tup_cloud_bits_idx, 
+    str_cloud_clear,
+    qa_total_bits,
+    nodata_target=None,
+    nodata_qa=0,    
+    path_out=None,     
+    ):
+    '''
+    Extract cloudless band of a value raster given a qa raster.
+    
+    params
+    ---------
+    path_in_target - str or path
+        A path of target raster
+    paht_in_qa - str or path
+        A path of QA raster
+    path_out - str or path
+        path for output raster
+    band_id_target - int
+        target's band id (start at 1)
+    band_id_qa - int
+        QA's band id        
+    tup_cloud_bits_idx - tuple
+        A tuple of bits identifier index for QA band that can identify cloud. If first 3 digits, tup_cloud_bits_idx should be (0, 3). Get this value from product manual.
+    str_cloud_clear - str
+        A string of cloud bits that means cloud clear. Get this value from product manual.        
+    qa_total_bits - int
+        No. of total bits of QA
+    nodata_target - numeric
+        A value that means target pixel is N/A. 
+    nodata_qa - numeric
+        A value that means QA pixel is N/A. Default is 0.
+    '''
+    #Read band data
+    with rasterio.open(path_in_target) as ds:    
+        profile = ds.profile
+        arr_target = ds.read(band_id_target)
+        if nodata_target is None:
+            #Get nodata value from dataset
+            nodata_target = ds.nodatavals[band_id_target-1]
+        # arr_target = np.where(arr_target==nodata_target, np.nan, arr_target)
+
+    #Get array of cloud clear flag        
+    arr_cloud_clear_f = get_arr_cloud_clear_f(
+        path_in_qa,
+        band_id_qa,
+        tup_cloud_bits_idx,
+        str_cloud_clear,
+        qa_total_bits,
+        nodata_qa
+    )
+    
+    arr_out = np.where(arr_cloud_clear_f==1, arr_target, nodata_target)
+    if path_out is not None:  
+        profile.update(
+            count=1,
+            compress='lzw'
+        )
+
+        with rasterio.open(path_out, 'w', **profile) as ds_out:
+            ds_out.write(arr_out, 1)
+        print(f'{path_out} has been saved')
+    return arr_out
+    
