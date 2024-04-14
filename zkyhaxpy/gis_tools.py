@@ -887,7 +887,13 @@ def get_df_row_col(in_s_polygon, in_raster_path, **kwargs):
     list_arr_row_col = []    
     list_polygon_id = []    
     
-    for polygon_id, tmp_polygon in tqdm(in_s_polygon.iteritems(), 'Getting row&col of pixels...', total=len(in_s_polygon)):
+    try:
+        zip_tup_polygon =  in_s_polygon.items()
+    except AttributeError:
+        #Support pandas version >= 1.5.0
+        zip_tup_polygon =  in_s_polygon.iteritems()        
+        
+    for polygon_id, tmp_polygon in tqdm(zip_tup_polygon, 'Getting row&col of pixels...', total=len(in_s_polygon)):
         is_polygon_overlap, nbr_pixels, arr_row_col = get_pix_row_col(tmp_polygon, path_ds_mapping)
         if is_polygon_overlap:
             list_polygon_id.append(polygon_id)
