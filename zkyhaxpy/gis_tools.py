@@ -233,7 +233,7 @@ def df_to_gdf(df, geometry, drop_old_geom_col=False, drop_z=True):
     '''
     df = df.copy()
     df['geometry'] = df[geometry].apply(wkt.loads)
-    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs='epsg:4326')
+    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs=CRS.from_epsg(4326))
     del(df)
     if drop_old_geom_col==True:
         gdf = gdf.drop(columns=[geometry]).copy()
@@ -670,9 +670,10 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
                 if os.path.exists('/tmp'):
                     out_raster_folder = os.path.join('/tmp', uuid.uuid4().hex)
                 else:
-                    out_raster_folder = os.path.join('c:', 'tmp', uuid.uuid4().hex)
+                    out_raster_folder = os.path.join('c:/', 'tmp', uuid.uuid4().hex)
             else:                
                 out_raster_folder = os.path.join(tmp_folder, uuid.uuid4().hex)
+            
             out_raster_path = os.path.join(out_raster_folder, f'rowcol_map_{os.path.basename(in_raster)}')
             io_tools.create_folders(out_raster_path)
             with rasterio.open(out_raster_path, 'w', **profile) as dst:
@@ -887,7 +888,12 @@ def get_df_row_col(in_s_polygon, in_raster_path, **kwargs):
     list_arr_row_col = []    
     list_polygon_id = []    
     
-    for polygon_id, tmp_polygon in tqdm(in_s_polygon.iteritems(), 'Getting row&col of pixels...', total=len(in_s_polygon)):
+    if pd.__version__ >= '1.5.0':
+        polygon_items = in_s_polygon.items()
+    else:
+        polygon_items = in_s_polygon.iteritems()
+
+    for polygon_id, tmp_polygon in tqdm(polygon_items, 'Getting row&col of pixels...', total=len(in_s_polygon)):
         is_polygon_overlap, nbr_pixels, arr_row_col = get_pix_row_col(tmp_polygon, path_ds_mapping)
         if is_polygon_overlap:
             list_polygon_id.append(polygon_id)

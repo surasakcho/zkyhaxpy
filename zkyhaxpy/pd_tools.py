@@ -103,7 +103,7 @@ def get_curr_colwidth():
 
 
         
-def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns=None, print_count=False, engine='auto', auto_dask=True, auto_dask_min_files=100, use_dask=None):
+def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns=None, print_count=False, engine='auto', auto_dask=True, auto_dask_min_files=100, use_dask=None, progress_bar=True):
     '''
 
     Read multiple parquet files of the same template into a single pandas dataframe.
@@ -133,8 +133,12 @@ def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re
         df = dd.read_parquet(list_file_path, columns=columns, engine=engine).compute()
     else:
         list_df = []
-        for file_path in tqdm(list_file_path, 'reading parquets...'):        
-            list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
+        if progress_bar:            
+            for file_path in tqdm(list_file_path, 'reading parquets...'):        
+                list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
+        else:
+            for file_path in list_file_path:
+                list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
         df = pd.concat(list_df)
         
     return df
