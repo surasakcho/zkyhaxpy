@@ -21,7 +21,7 @@ def execute_cmd(cmd, return_output_line=False):
     print(f'Executing "{cmd}" on console.')
     
     list_output = []
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, shell=True)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=-1, shell=True)
     
     for line in iter(p.stdout.readline, b''):
         line_str = line.decode("utf-8") 

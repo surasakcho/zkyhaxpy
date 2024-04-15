@@ -34,7 +34,12 @@ def dttm_to_yyyymmdd(dttm):
     '''
     Return : a string of current datetime in yyyymmdd_hhmm 
     '''
-    return datetime.datetime.strftime(dttm, '%Y%m%d')
+    
+    if type(dttm) is np.datetime64:
+        return ''.join(str(np.datetime64(dttm))[:10].split('-'))
+    elif (type(dttm) is datetime.date) | (type(dttm) is datetime.datetime):
+        return datetime.datetime.strftime(dttm, '%Y%m%d')
+
 
 
 def curr_yyyymmdd_hhmm():

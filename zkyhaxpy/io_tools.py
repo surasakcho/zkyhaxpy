@@ -10,18 +10,23 @@ from collections import namedtuple
 from zipfile import ZipFile 
 
 from distutils.dir_util import copy_tree
+from warnings import warn
 
 
 
-def create_folders(path):
-    
-    basename = os.path.basename(path)
-    dirname = os.path.dirname(path)
-    
-    if '.' in basename:
-        os.makedirs(dirname, exist_ok=True)
-    else:
-        os.makedirs(path, exist_ok=True)        
+
+def create_folders(*args):
+    '''
+    Create folders for given path(s). 
+    '''
+    for path in args:
+        basename = os.path.basename(path)
+        dirname = os.path.dirname(path)
+        
+        if '.' in basename:
+            os.makedirs(dirname, exist_ok=True)
+        else:
+            os.makedirs(path, exist_ok=True)          
 
 
 def get_disk_free_space_mb(path = 'c:'):
@@ -79,7 +84,10 @@ def write_pickle(data, out_pickle_path, overwrite=True):
 
 
 
-def get_list_files_re(rootpath, filename_re=None, folder_re=None, return_df=False ):
+         
+         
+         
+def get_list_files(rootpath, filename_re=None, folder_re=None, return_df=False, print_count=True ):
     '''
     rootpath : root path to lookup files
     filename_re : regular expression to search for filename
@@ -100,24 +108,28 @@ def get_list_files_re(rootpath, filename_re=None, folder_re=None, return_df=Fals
             if ((re.search(filename_re, file) != None) & (re.search(folder_re, folder) != None)):
                 list_files.append(os.path.join(folder, file))
     
+    if print_count==True:
+        print(f'Total of {len(list_files)} files have been listed.')
+        
     if return_df==False:
         return list_files
     else:
         return filepaths_to_df(list_files)
          
-   
 
-def list_files_re(rootpath, filename_re=None, folder_re=None, return_df=False  ):
+
+def get_list_files_re(rootpath, filename_re=None, folder_re=None, return_df=False ):
     '''
     rootpath : root path to lookup files
     filename_re : regular expression to search for filename
     folder_re : regular expression to search for folder
+
     return : a list of filepaths
     '''
-  
-    return get_list_files_re(rootpath, filename_re, folder_re, return_df )             
-        
-  
+    warn('get_list_files_re will be deprecated in the future.', FutureWarning, stacklevel=2)
+    return get_list_files(rootpath, filename_re, folder_re, return_df)
+   
+
 def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exists=False, random_sequence=False):        
     '''
     Sync all files in the source folder that have names matched with the given regular expression. 
@@ -152,7 +164,7 @@ def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exi
     return dst_folder
 
 
-def sync_to_work(src_folder, filename_re=None, work_folder=r'c:\workspace', force=False, min_work_free_space_mb=10*1024, show_exists=False, check_file=True) :
+def sync_to_work(src_folder, work_folder=r'c:\workspace', filename_re=None, force=False, min_work_free_space_mb=10*1024, show_exists=False, check_file=True) :
     
     dst_folder = os.path.join(work_folder, os.path.basename(src_folder))
     os.makedirs(work_folder, exist_ok=True)
@@ -349,3 +361,47 @@ def check_all_files_exists(*args):
             return False
         
     return True
+
+
+def copy_if_not_exists(file_path, src_folder, if_many_source_files='error'):
+    '''
+    Check if a file is existing, if not, copy the file from the source folder.
+
+    inputs
+    ----------------------------------
+    file_path: str or path
+        a path of file to be checked
+    src_folder: str or path
+        a folder of source file to copy from
+    if_many_source_files: str
+        how to handle the process if there are many files with the same name in the source folder
+        'error': will stop this process with an assertion error
+        'first': will copy the first file found as the source file
+        'last': will copy the last file found as the source file
+    '''
+
+    assert(if_many_source_files in ['error', 'first', 'last'])
+
+    file_nm = os.path.basename(file_path)
+    if os.path.exists(file_path):
+        return
+    else:
+        list_src_files = get_list_files_re(src_folder, file_nm)
+        
+        if len(list_src_files)==0:
+            print('There is no source file found. Stop copying')
+            raise FileNotFoundError
+        elif len(list_src_files)==1:
+            shutil.copy2(list_src_files[0], file_path)                    
+        else:
+            if if_many_source_files=='error':
+                print('There are more than one source file found. Stop copying')
+                assert(len(list_src_files)==1)
+            elif if_many_source_files=='first':
+                shutil.copy2(list_src_files[0], file_path)                    
+            elif if_many_source_files=='last':
+                shutil.copy2(list_src_files[-1], file_path)                    
+        
+        print('File has been copied')
+        
+            
