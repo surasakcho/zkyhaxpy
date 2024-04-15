@@ -14,12 +14,12 @@ def read_dict_json(json_path, print_result=False, convert_non_allowed_keys=True)
     if convert_non_allowed_keys==True:
         dict_out = __convert_temp_keys_to_original(dict_out)    
     
-    if print_result:
+    if print_result:    
         print(f'{json_path} has been loaded.')
     return dict_out
 
 
-def write_dict_json(dict_in, json_path, force_overwrite=True, convert_non_allowed_keys=True):   
+def write_dict_json(dict_in, json_path, force_overwrite=True, convert_non_allowed_keys=True, print_result=True, indent=2):   
     '''
     Write a dictionary into a json file.
     '''    
@@ -37,8 +37,9 @@ def write_dict_json(dict_in, json_path, force_overwrite=True, convert_non_allowe
         dict_in = __convert_non_allowed_keys_to_temp(dict_in)
     
     with open(json_path, 'w') as f:
-        f.write(json.dumps(dict_in, indent=2))
-        print(f'{json_path} has been saved.')
+        f.write(json.dumps(dict_in, indent=indent))
+        if print_result:
+            print(f'{json_path} has been saved.')
     return 
 
 
