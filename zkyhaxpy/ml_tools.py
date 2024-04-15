@@ -130,11 +130,10 @@ def plot_roc(y_true, y_pred, classes,
     plt.show() 
 
 
-
 def get_threshold_at_fpr(probs, y_act, fpr):
     '''
-    Get threshold prob at given FPR
-
+    Get threshold prob at given FPR (Inclusion Error)
+ 
     inputs
     -------------------------------
     probs
@@ -143,7 +142,7 @@ def get_threshold_at_fpr(probs, y_act, fpr):
         array like of actual class
     fpr
         FPR to get threshold
-
+ 
     outputs
     -------------------------------
     threshold_at_fpr: float
@@ -151,6 +150,32 @@ def get_threshold_at_fpr(probs, y_act, fpr):
     '''
     df_tmp = pd.DataFrame(zip(probs, y_act), columns=['prob', 'y_act'])
     df_tmp = df_tmp.sort_values('prob', ascending=False)
-    df_tmp['fpr_at_current_threshold'] = np.cumsum((df_tmp['y_act']==0) / len(df_tmp))
+    n_act_0 = (df_tmp['y_act']==0).sum()
+    df_tmp['fpr_at_current_threshold'] = np.cumsum((df_tmp['y_act']==0) / n_act_0)
     threshold_at_fpr = df_tmp.iloc[np.argmin(df_tmp['fpr_at_current_threshold'] < fpr) ]['prob']
     return threshold_at_fpr
+ 
+def get_threshold_at_fnr(probs, y_act, fnr):
+    '''
+    Get threshold prob at given FNR (Exclusion Error)
+ 
+    inputs
+    -------------------------------
+    probs
+        array like of probabities of class 1
+    y_act
+        array like of actual class
+    fnr
+        FNR to get threshold
+ 
+    outputs
+    -------------------------------
+    threshold_at_fnr: float
+        threshold prob at given FNR
+    '''
+    df_tmp = pd.DataFrame(zip(probs, y_act), columns=['prob', 'y_act'])
+    df_tmp = df_tmp.sort_values('prob', ascending=True)
+    n_act_1 = (df_tmp['y_act']==1).sum()
+    df_tmp['fnr_at_current_threshold'] = np.cumsum((df_tmp['y_act']==1) / n_act_1)
+    threshold_at_fnr = df_tmp.iloc[np.argmin(df_tmp['fnr_at_current_threshold'] < fnr) ]['prob']
+    return threshold_at_fnr  

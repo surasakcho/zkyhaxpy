@@ -10,6 +10,8 @@ from collections import namedtuple
 from zipfile import ZipFile 
 
 from distutils.dir_util import copy_tree
+from warnings import warn
+
 
 
 
@@ -82,7 +84,10 @@ def write_pickle(data, out_pickle_path, overwrite=True):
 
 
 
-def get_list_files_re(rootpath, filename_re=None, folder_re=None, return_df=False ):
+         
+         
+         
+def get_list_files(rootpath, filename_re=None, folder_re=None, return_df=False, print_count=True ):
     '''
     rootpath : root path to lookup files
     filename_re : regular expression to search for filename
@@ -103,25 +108,28 @@ def get_list_files_re(rootpath, filename_re=None, folder_re=None, return_df=Fals
             if ((re.search(filename_re, file) != None) & (re.search(folder_re, folder) != None)):
                 list_files.append(os.path.join(folder, file))
     
-    print(f'Total of {len(list_files)} files have been listed.')
+    if print_count==True:
+        print(f'Total of {len(list_files)} files have been listed.')
+        
     if return_df==False:
         return list_files
     else:
         return filepaths_to_df(list_files)
          
-   
 
-def list_files_re(rootpath, filename_re=None, folder_re=None, return_df=False  ):
+
+def get_list_files_re(rootpath, filename_re=None, folder_re=None, return_df=False ):
     '''
     rootpath : root path to lookup files
     filename_re : regular expression to search for filename
     folder_re : regular expression to search for folder
+
     return : a list of filepaths
     '''
-  
-    return get_list_files_re(rootpath, filename_re, folder_re, return_df )             
-        
-  
+    warn('get_list_files_re will be deprecated in the future.', FutureWarning, stacklevel=2)
+    return get_list_files(rootpath, filename_re, folder_re, return_df)
+   
+
 def sync_folders(src_folder, dst_folder, filename_re=None, force=False, show_exists=False, random_sequence=False):        
     '''
     Sync all files in the source folder that have names matched with the given regular expression. 

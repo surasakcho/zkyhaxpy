@@ -1,24 +1,24 @@
 #Authored by : Pongporamat C. 
 #Updated by Surasak C.
 
-from pandas import DataFrame
+
 import numpy as np
 import pandas as pd
-import datetime
+import uuid
+import shutil
+
+
 import os
 import subprocess
 from numba import jit
 from tqdm.notebook import tqdm
-import tarfile
+
 import utm
 from osgeo import ogr, gdal, gdal_array, gdalconst
 import geopandas as gpd
 import shapely
 from shapely import wkt
 from shapely.geometry import Polygon, MultiPolygon, mapping
-
-import uuid 
-
 import rasterio
 from rasterio import Affine, transform
 from rasterio.features import rasterize
@@ -27,11 +27,11 @@ from rasterio.io import MemoryFile
 import pyproj
 from pyproj import Proj, CRS
 
-import skimage
 from skimage import filters, exposure
 from skimage.io import imsave
-
 import matplotlib.pyplot as plt
+
+from zkyhaxpy import io_tools
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -115,6 +115,55 @@ def extract_bits(img, position):
     
 
 
+def resample_raster(path_file_input, path_file_output, upscale_factor = 0.25, resampling='bilinear'):
+    '''
+    Resample a raster of one resolution into another resolution with the same projection.
+    If upscale_factor > 1, upscaling will be performed.
+    If upscale_factor < 1, downscaling will be performed.
+    '''
+    assert(upscale_factor > 0)
+
+    if resampling == 'bilinear':
+        resampling = rasterio.enums.Resampling.bilinear
+    
+    with rasterio.open(path_file_input) as dataset:
+        
+        profile_resample = dataset.profile
+
+        # resample data to target shape
+        arr_resample = dataset.read(
+            out_shape=(
+                dataset.count,
+                int(dataset.height * upscale_factor),
+                int(dataset.width * upscale_factor)
+            ),
+            resampling=resampling
+        )
+
+        # scale image transform
+        n_bands, h_resample, w_resample = arr_resample.shape
+        transform = dataset.transform * dataset.transform.scale(
+            (dataset.width / arr_resample.shape[-1]),
+            (dataset.height / arr_resample.shape[-2])
+        )
+
+        profile_resample.update({
+            'transform':transform,
+            'width':w_resample,
+            'height':h_resample,
+        })
+
+
+    with rasterio.open(path_file_output, mode='w', **profile_resample) as dst:
+        for i in range(n_bands):
+            dst.write(arr_resample[i], i+1)
+
+    print(f'{path_file_output} has been created.')
+    
+    
+    
+
+
 
 def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', driver_nm='GTiff'):
     '''
@@ -184,7 +233,7 @@ def df_to_gdf(df, geometry, drop_old_geom_col=False, drop_z=True):
     '''
     df = df.copy()
     df['geometry'] = df[geometry].apply(wkt.loads)
-    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs={'init' : 'epsg:4326'})
+    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs=CRS.from_epsg(4326))
     del(df)
     if drop_old_geom_col==True:
         gdf = gdf.drop(columns=[geometry]).copy()
@@ -199,17 +248,44 @@ def df_to_gdf(df, geometry, drop_old_geom_col=False, drop_z=True):
     return gdf
 
 
-
-def shape_to_raster(in_shp, out_tif, ref_tif):
+def shape_to_raster(in_shp, out_tif, ref_tif, no_data=0, all_touched=False, attribute=None, burn_val=1, datatype=gdal.GDT_Byte):
     #Code by PongporC 23/Jan/2020
+    #Modified by Surasak C.
+   
+   
     '''
-    params
+    Rasterize a shape file into GeoTiff file.
+   
+    inputs
     ----------------------------------
-    in_shp : path of input shapefile
-    out_tif : path of output tif
-    ref_tif : path of reference tif 
+    in_shp :
+        path of input shapefile
+       
+    out_tif :
+        path of output tif
+       
+    ref_tif :
+        path of reference tif
+       
+    no_data :
+        value for no data
+       
+    all_touched :
+        True or False
+       
+    attribute :
+        a column name in the shape file to be rasterized
+       
+    burn_val :
+        value to be filled in raster if no attribute is provided
+       
+    datatype :
+        gdal's datatype
+      
     '''
 
+    if attribute:
+        burn_val = None
 
     InputVector = in_shp
     OutputImage = out_tif
@@ -217,8 +293,9 @@ def shape_to_raster(in_shp, out_tif, ref_tif):
     RefImage = ref_tif
 
     gdalformat = 'GTiff'
-    datatype = gdal.GDT_Byte
-    burnVal = 1 #value for the output image pixels
+   
+           
+       
     ##########################################################
     # Get projection info from reference image
     Image = gdal.Open(RefImage, gdal.GA_ReadOnly)
@@ -227,16 +304,25 @@ def shape_to_raster(in_shp, out_tif, ref_tif):
     Shapefile = ogr.Open(InputVector)
     Shapefile_layer = Shapefile.GetLayer()
 
-    # Rasterise
-    print("Rasterising shapefile...")
+    # Rasterize
+    print("Rasterizing shapefile...")
     Output = gdal.GetDriverByName(gdalformat).Create(OutputImage, Image.RasterXSize, Image.RasterYSize, 1, datatype, options=['COMPRESS=DEFLATE'])
     Output.SetProjection(Image.GetProjectionRef())
-    Output.SetGeoTransform(Image.GetGeoTransform()) 
+    Output.SetGeoTransform(Image.GetGeoTransform())
 
     # Write data to band 1
     Band = Output.GetRasterBand(1)
-    Band.SetNoDataValue(0)
-    gdal.RasterizeLayer(Output, [1], Shapefile_layer, burn_values=[burnVal])
+    Band.SetNoDataValue(no_data)
+   
+   
+   
+    if attribute:
+        options=[f"ATTRIBUTE={attribute}", f"ALL_TOUCHED={str(all_touched).upper()}"]
+        gdal.RasterizeLayer(Output, [1], Shapefile_layer, options=options)   
+    else:
+        options=[f"ALL_TOUCHED={str(all_touched).upper()}"]
+        gdal.RasterizeLayer(Output, [1], Shapefile_layer, burn_values=[burn_val], options=options)   
+   
 
     # Close datasets
     Band = None
@@ -528,7 +614,7 @@ def create_row_col_arr(in_shape):
 
 
 
-def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None, out_nodata_value = -1000):
+def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None, out_nodata_value = -1000, **kwargs):
     '''
     Create row & col mapping of given raster. Output can be either an actual file or an on-memory file (rasterio's dataset).
     
@@ -542,8 +628,13 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
 
     out_mem: True or False
         if True, return as a memory file's dataset
-
+    
     '''
+
+    if 'tmp_folder' in kwargs.keys():
+        tmp_folder=kwargs['tmp_folder']
+    else:
+        tmp_folder = None
 
     if type(in_raster) != rasterio.io.DatasetReader:
         tmp_ds = rasterio.open(in_raster, 'r')
@@ -559,7 +650,9 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
             count=2,
             compress='lzw',
             nodata=out_nodata_value)
+
         if out_raster_path:
+            io_tools.create_folders(out_raster_path)
             with rasterio.open(out_raster_path, 'w', **profile) as dst:
                 #row
                 dst.write(tmp_arr_row_col[0], 1)
@@ -568,9 +661,32 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
                 #col
                 dst.write(tmp_arr_row_col[1], 2)
                 dst.set_band_description(2, 'col')
-
             print(f'{out_raster_path} has been created')
+            return out_raster_path
 
+            
+        elif (out_mem==False) & (out_raster_path==None):
+            if tmp_folder==None:                                                
+                if os.path.exists('/tmp'):
+                    out_raster_folder = os.path.join('/tmp', uuid.uuid4().hex)
+                else:
+                    out_raster_folder = os.path.join('c:/', 'tmp', uuid.uuid4().hex)
+            else:                
+                out_raster_folder = os.path.join(tmp_folder, uuid.uuid4().hex)
+            
+            out_raster_path = os.path.join(out_raster_folder, f'rowcol_map_{os.path.basename(in_raster)}')
+            io_tools.create_folders(out_raster_path)
+            with rasterio.open(out_raster_path, 'w', **profile) as dst:
+                #row
+                dst.write(tmp_arr_row_col[0], 1)
+                dst.set_band_description(1, 'row')
+
+                #col
+                dst.write(tmp_arr_row_col[1], 2)
+                dst.set_band_description(2, 'col')
+            print(f'{out_raster_path} has been created')
+            return out_raster_path
+            
         elif out_mem==True:
             memfile = MemoryFile()
             ds_mem = memfile.open( **profile)
@@ -652,13 +768,16 @@ def get_pix_row_col(in_polygon, in_row_col_mapping_raster, in_crs_polygon='epsg:
         assert(len(arr_row_col) > 0)
         is_polygon_overlap = True
         nbr_pixels = len(arr_row_col)
-
+        tmp_ds.close()
+        del(tmp_ds)
     except Exception as e:
         #If input polygon does not overlap the raster, return nan for row & col
         if str(e) == 'Input shapes do not overlap raster.':
             is_polygon_overlap = False    
             arr_row_col = np.array([[np.nan, np.nan]])    
             nbr_pixels = 0
+            tmp_ds.close()
+            del(tmp_ds)
         else:
             raise(e)
     
@@ -743,7 +862,7 @@ def __reformat_list_row_col_for_df(in_list_polygon_id, in_list_arr_row_col):
 
 
 
-def get_df_row_col(in_s_polygon, in_raster_path):
+def get_df_row_col(in_s_polygon, in_raster_path, **kwargs):
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry).
 
@@ -761,20 +880,26 @@ def get_df_row_col(in_s_polygon, in_raster_path):
 
     '''
 
-   
-    #Create temp on-memory dataset
-    ds_mem_rowcol_raster = create_row_col_mapping_raster(in_raster_path, out_mem=True)
+    #Create row col mappint raster    
+    path_ds_mapping = create_row_col_mapping_raster(in_raster_path, out_mem=False)
+    
 
     #getting row-col from on-memory row-col raster
     list_arr_row_col = []    
     list_polygon_id = []    
     
-    for polygon_id, tmp_polygon in tqdm(in_s_polygon.iteritems(), 'Getting row&col of pixels...', total=len(in_s_polygon)):
-        is_polygon_overlap, nbr_pixels, arr_row_col = get_pix_row_col(tmp_polygon, ds_mem_rowcol_raster)
+    if pd.__version__ >= '1.5.0':
+        polygon_items = in_s_polygon.items()
+    else:
+        polygon_items = in_s_polygon.iteritems()
+
+    for polygon_id, tmp_polygon in tqdm(polygon_items, 'Getting row&col of pixels...', total=len(in_s_polygon)):
+        is_polygon_overlap, nbr_pixels, arr_row_col = get_pix_row_col(tmp_polygon, path_ds_mapping)
         if is_polygon_overlap:
             list_polygon_id.append(polygon_id)
             list_arr_row_col.append(arr_row_col)
-    
+        
+    shutil.rmtree(os.path.dirname(path_ds_mapping))
     arr_polygon_id, arr_row, arr_col = __reformat_list_row_col_for_df(list_polygon_id, list_arr_row_col)
     list_data = zip(arr_polygon_id, arr_row, arr_col)
     out_df_polygon_row_col = pd.DataFrame(list_data, columns=[in_s_polygon.index.name, 'row', 'col'])
@@ -786,7 +911,7 @@ def get_df_row_col(in_s_polygon, in_raster_path):
 
 
 
-def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm, in_list_target_raster_band_id, nodata_val=-999):
+def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm, in_list_target_raster_band_id, nodata_val=-999, **kwargs):
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry) from single raster file with one or more bands.
 
@@ -833,7 +958,7 @@ def extract_pixval_single_file(in_s_polygon, in_raster_path, in_list_out_col_nm,
     return df_polygon_row_col_pixval
 
 
-def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_col_nm, in_target_raster_band_id=1, nodata_val=-999, check_raster_consistent=True):
+def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_col_nm, in_target_raster_band_id=1, nodata_val=-999, check_raster_consistent=True, **kwargs) :
     '''
     To extract pixel values of a given polygon (wkt or shapely geometry) from multiple raster files with the same geo reference.
 
@@ -894,3 +1019,266 @@ def extract_pixval_multi_files(in_s_polygon, in_list_raster_path, in_list_out_co
     return df_polygon_row_col_pixval
 
 
+def get_arr_rowcol_mapping_from_raster(raster_path):
+    '''
+    Get array of pixel row & col mapping from a given raster.
+    Return an array of 6 columns for row, col, lat_upper, lat_lower, lon_lower, lon_upper accordingly.
+    '''
+    assert(os.path.exists(raster_path))        
+    path_ds_mapping = create_row_col_mapping_raster(raster_path, out_mem=False)
+    with rasterio.env():
+        with rasterio.open(path_ds_mapping) as ds_mapping:
+
+            (lon_col_0, lon_pix_size, _, lat_row_0, _, lat_pix_size) = ds_mapping.get_transform()
+            arr_mapping = ds_mapping.read()
+            ds_mapping = None
+
+            arr_mapping = arr_mapping.T.reshape(-1, 2)
+            arr_lat_upper = lat_row_0 + (arr_mapping[:, 0] * lat_pix_size)
+            arr_lat_lower = lat_row_0 + ((arr_mapping[:, 0] + 1) * lat_pix_size)    
+            arr_lon_upper = lon_col_0 + ((arr_mapping[:, 1] + 1) * lon_pix_size)
+            arr_lon_lower = lon_col_0 + (arr_mapping[:, 1] * lon_pix_size)
+            arr_mapping = np.concatenate(
+                (
+                    arr_mapping, 
+                    arr_lat_upper.reshape(-1, 1),
+                    arr_lat_lower.reshape(-1, 1),             
+                    arr_lon_upper.reshape(-1, 1),
+                    arr_lon_lower.reshape(-1, 1), 
+                ),
+                axis=1)
+    shutil.rmtree(os.path.dirname(path_ds_mapping))
+    return arr_mapping
+
+ 
+
+@jit(nopython=True)
+def __get_pixel_rowcol_from_latlon_numba(lat, lon, arr_mapping):
+    arr_pixel_row_col = arr_mapping[((arr_mapping[:, 2] >= lat ) & (arr_mapping[:, 3] < lat) & (arr_mapping[:, 4] >= lon ) & (arr_mapping[:, 5] < lon))]
+    if(len(arr_pixel_row_col)==1):
+        row, col = arr_pixel_row_col[0, 0:2]
+        row = int(row)
+        col = int(col)
+    return row, col
+
+ 
+
+
+def get_pixel_rowcol_from_latlon(lat, lon, df_mapping=None, raster_path=None, arr_mapping=None, check_format=False):
+    '''
+    Get pixel row & col idx of a lat lon from a mapping dataframe or a raster or an arr
+    '''
+    assert((type(df_mapping)==pd.DataFrame) or (type(raster_path)==str) or (type(arr_mapping) == np.ndarray))
+    if type(df_mapping)==pd.DataFrame:
+        assert(type(raster_path)==type(None))
+        assert(type(arr_mapping)==type(None))      
+        
+        if check_format==True:
+            assert(set(df_mapping.columns.to_list()) == set(['row', 'col', 'lat_upper', 'lat_lower', 'lon_lower', 'lon_upper']))        
+            
+        df_pixel = df_mapping[(df_mapping['lat_upper'] >= lat) & (df_mapping['lat_lower'] < lat) & (df_mapping['lon_upper'] >= lon) & (df_mapping['lon_lower'] < lon)]
+        if len(df_pixel)==1:
+            row = int(df_pixel.iloc[0]['row'])
+            col = int(df_pixel.iloc[0]['col'])
+        else:
+            row = -999
+            col = -999
+        return row, col
+    elif type(raster_path)==str:
+        
+        arr_mapping = get_arr_rowcol_mapping_from_raster(raster_path)
+        return get_pixel_rowcol_from_latlon(lat, lon, arr_mapping=arr_mapping)
+    
+    elif type(arr_mapping) == np.ndarray:
+        if check_format==True:
+            assert(arr_mapping[:, 2:4].min() >= -90) #range of lat
+            assert(arr_mapping[:, 2:4].max() <= 90) #range of lat
+            assert(arr_mapping[:, 4:6].min() >= -180) #range of lon
+            assert(arr_mapping[:, 4:6].max() <= 180) #range of lon
+
+ 
+
+#         arr_pixel_row_col = arr_mapping[((arr_mapping[:, 2] >= lat ) & (arr_mapping[:, 3] < lat) & (arr_mapping[:, 4] >= lon ) & (arr_mapping[:, 5] < lon))]
+#         if(len(arr_pixel_row_col)==1):
+#             row, col = arr_pixel_row_col[0, 0:2]
+#             row = int(row)
+#             col = int(col)
+#         return row, col
+        return __get_pixel_rowcol_from_latlon_numba(lat, lon, arr_mapping)
+    
+    
+
+def convert_hdf_to_geotiff(
+    path_in, path_out, subds,
+    ):
+    '''
+    Convert one band of one subdataset from a HDF4 (ex. MODIS) into GeoTiff file.
+        
+    params
+    ----------
+    path_in: str or path-like
+        A path of input HDF file
+    path_out: str or path-like
+        A path of input GeoTiff file
+    subds: str
+        Target subdataset to extract (ex. "grid1km:Optical_Depth_055")
+
+        
+    returns
+    ---------
+    result: int
+        0 = ok, otherwise failed
+    '''
+    
+    srcfile = f'HDF4_EOS:EOS_GRID:"{path_in}":{subds}' 
+    gdal_cmd = f"gdal_translate -of GTiff {srcfile} {path_out}"    
+    return os.system(gdal_cmd)    
+
+
+
+def get_qa_val_cloud_clear_flag(qa_val, tup_cloud_bits_idx, str_cloud_clear, qa_total_bits, nodata, ):
+    '''
+    Get cloud clear flag of given QA value.
+    
+    params
+    ---------
+    qa_val: numeric
+        Pixel value of QA
+    tup_cloud_bits_idx: tuple()
+        A tuple to idx to extract bits from binary str. This identifier will work backward. Meaning getting first 3 digits will actually last 3 digits of binary string. For example, if binary string = '0b000100' and tup_cloud_bits_idx = (0, 3), it will get bit from backward and result will be '001'.        
+    str_cloud_clear: str
+        A string of bits that mean no cloud. This value can be get from Satellite data provider's document of the product. Do not reverse this value.
+    qa_total_bits: int
+        No. of bits for qa
+    nodata: numeric
+        A value specify pixel value is N/A
+    
+    For more information, see https://atmosphere-imager.gsfc.nasa.gov/sites/default/files/ModAtmo/QA_Plan_C61_Master_2017_03_15.pdf
+    
+    Return
+    ---------       
+        - 1 if it is cloud clear.
+        - 0 if it is not cloud clear.
+        - -9 if N/A
+    '''    
+    if qa_val==nodata:
+        return -9
+
+    str_bin = bin(qa_val)[2:].zfill(qa_total_bits)
+    
+    if tup_cloud_bits_idx[0] > 0:
+        
+        str_nbits = str_bin[-tup_cloud_bits_idx[1]:-tup_cloud_bits_idx[0]]
+    else:    
+        str_nbits = str_bin[-tup_cloud_bits_idx[1]:]
+        
+    return int(str_nbits==str_cloud_clear)
+    
+    
+def get_arr_cloud_clear_f(
+    path_in_qa,
+    band_id_qa,
+    tup_cloud_bits_idx, 
+    str_cloud_clear,
+    qa_total_bits,
+    nodata_qa=0
+):
+    '''
+    Get an array of cloud clear flag from given qa raster.
+    
+    params
+    ----------
+    paht_in_qa - str or path
+        A path of QA raster
+    tup_cloud_bits_idx - tuple
+        A tuple of bits identifier index for QA band that can identify cloud. If first 3 digits, tup_cloud_bits_idx should be (0, 3). Get this value from product manual.
+    str_cloud_clear - str
+        A string of cloud bits that means cloud clear. Get this value from product manual.        
+    nodata_qa - numeric
+        A value that means QA pixel is N/A. Default is 0.
+        
+    returns
+    ----------
+    arr_cloud_clear_f - numpy array (m, n)
+        An array of cloud clear flag. 1 = cloud clear pixel, 0 = cloudy pixel, NaN = N/A
+    '''
+    with rasterio.open(path_in_qa) as ds:    
+        arr_qa = ds.read(band_id_qa)
+            
+    #Array of cloud clear flag
+    dict_qa_cloud_clear = {qa_val:get_qa_val_cloud_clear_flag(qa_val, tup_cloud_bits_idx, str_cloud_clear, qa_total_bits, nodata_qa) for qa_val in np.unique(arr_qa)}
+    
+    
+    return np.vectorize(dict_qa_cloud_clear.get)(arr_qa)
+
+
+
+def extract_cloudless_band(
+    path_in_target, 
+    path_in_qa,     
+    band_id_target, 
+    band_id_qa,     
+    tup_cloud_bits_idx, 
+    str_cloud_clear,
+    qa_total_bits,
+    nodata_target=None,
+    nodata_qa=0,    
+    path_out=None,     
+    ):
+    '''
+    Extract cloudless band of a value raster given a qa raster.
+    
+    params
+    ---------
+    path_in_target - str or path
+        A path of target raster
+    paht_in_qa - str or path
+        A path of QA raster
+    path_out - str or path
+        path for output raster
+    band_id_target - int
+        target's band id (start at 1)
+    band_id_qa - int
+        QA's band id        
+    tup_cloud_bits_idx - tuple
+        A tuple of bits identifier index for QA band that can identify cloud. If first 3 digits, tup_cloud_bits_idx should be (0, 3). Get this value from product manual.
+    str_cloud_clear - str
+        A string of cloud bits that means cloud clear. Get this value from product manual.        
+    qa_total_bits - int
+        No. of total bits of QA
+    nodata_target - numeric
+        A value that means target pixel is N/A. 
+    nodata_qa - numeric
+        A value that means QA pixel is N/A. Default is 0.
+    '''
+    #Read band data
+    with rasterio.open(path_in_target) as ds:    
+        profile = ds.profile
+        arr_target = ds.read(band_id_target)
+        if nodata_target is None:
+            #Get nodata value from dataset
+            nodata_target = ds.nodatavals[band_id_target-1]
+        # arr_target = np.where(arr_target==nodata_target, np.nan, arr_target)
+
+    #Get array of cloud clear flag        
+    arr_cloud_clear_f = get_arr_cloud_clear_f(
+        path_in_qa,
+        band_id_qa,
+        tup_cloud_bits_idx,
+        str_cloud_clear,
+        qa_total_bits,
+        nodata_qa
+    )
+    
+    arr_out = np.where(arr_cloud_clear_f==1, arr_target, nodata_target)
+    if path_out is not None:  
+        profile.update(
+            count=1,
+            compress='lzw'
+        )
+
+        with rasterio.open(path_out, 'w', **profile) as ds_out:
+            ds_out.write(arr_out, 1)
+        print(f'{path_out} has been saved')
+    return arr_out
+    
