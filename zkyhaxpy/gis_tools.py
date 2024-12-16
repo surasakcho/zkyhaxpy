@@ -521,6 +521,7 @@ def check_gdf_in_geom(gdf, geom, simplify_geom_tole=0.0005, check_using_centroid
     A pandas series of boolean.
 	'''
     gdf = gdf.copy()
+    assert(len(gdf) > 0)
     if check_using_centroid:
         gdf['geometry'] = gdf.centroid    
     
