@@ -103,7 +103,7 @@ def get_curr_colwidth():
 
 
         
-def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns=None, print_count=False, engine='auto', auto_dask=True, auto_dask_min_files=100, use_dask=None, progress_bar=True):
+def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns=None, print_count=False, engine='auto', auto_dask=True, auto_dask_min_files=100, use_dask=None, progress_bar=True, sample_frac=None, random_state=88):
     '''
 
     Read multiple parquet files of the same template into a single pandas dataframe.
@@ -135,10 +135,16 @@ def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re
         list_df = []
         if progress_bar:            
             for file_path in tqdm(list_file_path, 'reading parquets...'):        
-                list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
+                if sample_frac:
+                    list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine).sample(frac=sample_frac, random_state=random_state))
+                else:
+                    list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
         else:
             for file_path in list_file_path:
-                list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
+                if sample_frac:
+                    list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine).sample(frac=sample_frac, random_state=random_state))
+                else:
+                    list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
         df = pd.concat(list_df)
         
     return df
