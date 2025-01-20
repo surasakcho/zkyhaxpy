@@ -1,6 +1,7 @@
 
 import json
 import os
+import numpy as np
 
 
 def read_dict_json(json_path, print_result=False, convert_non_allowed_keys=True):   
@@ -111,8 +112,10 @@ def clean_dict_for_exporting(dict_input):
             if dict_output[key] == int(dict_output[key]):
                 dict_output[key] = int(dict_output[key])
             else:
-                if type(dict_output[key])==int:
-                    dict_output[key] = float(dict_output[key]/1000)
+                if type(dict_output[key]) == np.float32:
+                    dict_output[key] = float(dict_output[key])
+
+                    
         except ValueError:
             pass
         except OverflowError:
