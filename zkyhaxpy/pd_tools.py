@@ -228,3 +228,13 @@ def optimize_dtypes(df, excluded_cols=None, only_int=True, allow_unsigned=False)
             pass
     
     return df
+
+
+def write_dict_df_to_excel(dict_df, path_output, engine='openpyxl', print_result=True):
+    # Create a Pandas Excel writer using XlsxWriter as the engine
+    with pd.ExcelWriter(path_output, engine=engine) as writer:
+        # Iterate over the dictionary and save each dataframe to a separate sheet
+        for sheet_name, df in dict_df.items():
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+    if print_result:
+        print(f"Dataframes have been successfully saved to {path_output}")
