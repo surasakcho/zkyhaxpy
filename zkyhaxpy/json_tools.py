@@ -1,6 +1,7 @@
 
 import json
 import os
+import numpy as np
 
 
 def read_dict_json(json_path, print_result=False, convert_non_allowed_keys=True):   
@@ -19,7 +20,8 @@ def read_dict_json(json_path, print_result=False, convert_non_allowed_keys=True)
     return dict_out
 
 
-def write_dict_json(dict_in, json_path, force_overwrite=True, convert_non_allowed_keys=True, print_result=True, indent=2):   
+def write_dict_json(dict_in, json_path, force_overwrite=True, convert_non_allowed_keys=True, print_result=True, indent=2, auto_clean=True):   
+
     '''
     Write a dictionary into a json file.
     '''    
@@ -32,6 +34,10 @@ def write_dict_json(dict_in, json_path, force_overwrite=True, convert_non_allowe
             print(f'Saving {json_path} has been cancelled.')
             return 
     
+    #Clean dict before writing out
+    if auto_clean:
+        dict_in = clean_dict_for_exporting(dict_in)
+
     #Convert non allowed keys back to original key
     if convert_non_allowed_keys==True:
         dict_in = __convert_non_allowed_keys_to_temp(dict_in)
@@ -99,3 +105,22 @@ def __convert_temp_keys_to_original(dict_in):
     return dict_out
         
     
+def clean_dict_for_exporting(dict_input):
+    dict_output = dict_input.copy()
+    for key in dict_output.keys():
+        try:
+            if dict_output[key] == int(dict_output[key]):
+                dict_output[key] = int(dict_output[key])
+            else:
+                if type(dict_output[key]) == np.float32:
+                    dict_output[key] = float(dict_output[key])
+
+                    
+        except ValueError:
+            pass
+        except OverflowError:
+            if dict_output[key] > 0:
+                dict_output[key] = 999999999
+            else:
+                dict_output[key] = -999999999
+    return dict_output    

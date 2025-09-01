@@ -103,7 +103,7 @@ def get_curr_colwidth():
 
 
         
-def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns=None, print_count=False, engine='auto', auto_dask=True, auto_dask_min_files=100, use_dask=None, progress_bar=True):
+def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re=None, columns=None, print_count=False, engine='auto', auto_dask=True, auto_dask_min_files=100, use_dask=None, progress_bar=True, sample_frac=None, random_state=88):
     '''
 
     Read multiple parquet files of the same template into a single pandas dataframe.
@@ -135,10 +135,16 @@ def read_parquets(file_paths=None, root_folder=None, folder_re=None, filename_re
         list_df = []
         if progress_bar:            
             for file_path in tqdm(list_file_path, 'reading parquets...'):        
-                list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
+                if sample_frac:
+                    list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine).sample(frac=sample_frac, random_state=random_state))
+                else:
+                    list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
         else:
             for file_path in list_file_path:
-                list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
+                if sample_frac:
+                    list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine).sample(frac=sample_frac, random_state=random_state))
+                else:
+                    list_df.append(pd.read_parquet(file_path, columns=columns, engine=engine))        
         df = pd.concat(list_df)
         
     return df
@@ -222,3 +228,13 @@ def optimize_dtypes(df, excluded_cols=None, only_int=True, allow_unsigned=False)
             pass
     
     return df
+
+
+def write_dict_df_to_excel(dict_df, path_output, engine='openpyxl', print_result=True):
+    # Create a Pandas Excel writer using XlsxWriter as the engine
+    with pd.ExcelWriter(path_output, engine=engine) as writer:
+        # Iterate over the dictionary and save each dataframe to a separate sheet
+        for sheet_name, df in dict_df.items():
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+    if print_result:
+        print(f"Dataframes have been successfully saved to {path_output}")
