@@ -13,7 +13,7 @@ import subprocess
 from numba import jit
 from tqdm.notebook import tqdm
 
-import utm
+
 from osgeo import ogr, gdal, gdal_array, gdalconst
 import geopandas as gpd
 import shapely
@@ -27,8 +27,6 @@ from rasterio.io import MemoryFile
 import pyproj
 from pyproj import Proj, CRS
 
-from skimage import filters, exposure
-from skimage.io import imsave
 import matplotlib.pyplot as plt
 
 from zkyhaxpy import io_tools
@@ -78,6 +76,8 @@ def pixel_row_col_to_xy(in_row, in_col, in_transform, in_crs):
     
     
 def xy_to_latlon(in_x, in_y, in_crs, in_zone):
+    import utm
+
     pp = Proj( in_crs, proj="utm", zone=in_zone)
     out_lon, out_lat = pp(in_x, in_y, inverse=True)
     return (out_lat, out_lon)
@@ -341,6 +341,8 @@ def calculate_polygon_area_from_lat_long(multi_polygon):
     ''' Return the area of polygon in square metre unit
         "multi_polygon" is the string of latlon 
     '''
+    import utm
+
     # Create polygon
     ring = ogr.Geometry(ogr.wkbLinearRing)
     coords = split_polygon(multi_polygon)
@@ -357,7 +359,9 @@ def calculate_polygon_area_from_lat_long(multi_polygon):
 
 def raster_to_jpg(output_path, raster=None, raster_path=None, save_im=None, band=1, min_value=-1.0, max_value=1.0, na_value=0.0):  
     #Code by PongporC 23/Jan/2020
-    #   
+    from skimage import filters, exposure
+    from skimage.io import imsave
+    
     if raster == None and raster_path != None and save_im==None:
         raster = gdal.Open(raster_path)
         save_im = raster.GetRasterBand(band).ReadAsArray()
