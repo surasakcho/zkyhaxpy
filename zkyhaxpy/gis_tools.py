@@ -675,7 +675,7 @@ def create_row_col_mapping_raster(in_raster, out_raster_path=None, out_mem=None,
                 if os.path.exists('/tmp'):
                     out_raster_folder = os.path.join('/tmp', uuid.uuid4().hex)
                 else:
-                    out_raster_folder = os.path.join('c:/', 'tmp', uuid.uuid4().hex)
+                    out_raster_folder = os.path.join(r'c:/tmp', uuid.uuid4().hex)
             else:                
                 out_raster_folder = os.path.join(tmp_folder, uuid.uuid4().hex)
             
@@ -1287,3 +1287,24 @@ def extract_cloudless_band(
         print(f'{path_out} has been saved')
     return arr_out
     
+    
+    
+    
+def generate_grid(lat_min, lat_max, lon_min, lon_max, step_size_km=1):
+    '''
+    Generates a regular grid of latitude and longitude coordinates within the specified bounding box.
+    :param lat_min: Minimum latitude
+    :param lat_max: Maximum latitude
+    :param lon_min: Minimum longitude
+    :param lon_max: Maximum longitude
+    :param step_size_km: Spacing between grid points (default: 1 km)
+    :return: List of (latitude, longitude) pairs
+    '''
+    grid_points = []
+    step_size_deg = step_size_km / 111.32  # Approximate conversion from km to degrees
+    
+    for lat in np.arange(lat_min, lat_max, step_size_deg):
+        for lon in np.arange(lon_min, lon_max, step_size_deg):
+            grid_points.append((round(lat, 4), round(lon, 4)))  # Convert back to decimal degrees
+
+    return grid_points
