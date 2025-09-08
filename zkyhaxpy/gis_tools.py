@@ -14,7 +14,7 @@ from numba import jit
 from tqdm.notebook import tqdm
 
 
-from osgeo import ogr, gdal, gdal_array, gdalconst
+
 import geopandas as gpd
 import shapely
 from shapely import wkt
@@ -166,6 +166,7 @@ def resample_raster(path_file_input, path_file_output, upscale_factor = 0.25, re
 
 
 def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', driver_nm='GTiff'):
+
     '''
 
     Reproject a source raster into a destination raster with reference raster's transform.
@@ -189,7 +190,7 @@ def reproject_raster_from_ref(src_path, dest_path, ref_path, dest_dtype='src', d
     None
 
 	'''  
-  
+    from osgeo import ogr, gdal, gdal_array, gdalconst
 
     inputfile = src_path
     input = gdal.Open(inputfile, gdalconst.GA_ReadOnly)
@@ -283,6 +284,7 @@ def shape_to_raster(in_shp, out_tif, ref_tif, no_data=0, all_touched=False, attr
         gdal's datatype
       
     '''
+    from osgeo import ogr, gdal, gdal_array, gdalconst
 
     if attribute:
         burn_val = None
@@ -341,6 +343,7 @@ def calculate_polygon_area_from_lat_long(multi_polygon):
     ''' Return the area of polygon in square metre unit
         "multi_polygon" is the string of latlon 
     '''
+    from osgeo import ogr, gdal, gdal_array, gdalconst
     import utm
 
     # Create polygon
@@ -361,6 +364,7 @@ def raster_to_jpg(output_path, raster=None, raster_path=None, save_im=None, band
     #Code by PongporC 23/Jan/2020
     from skimage import filters, exposure
     from skimage.io import imsave
+    from osgeo import ogr, gdal, gdal_array, gdalconst
     
     if raster == None and raster_path != None and save_im==None:
         raster = gdal.Open(raster_path)
