@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zkyhaxpy"
+# We tell it to look for the version inside the code
+dynamic = ["version"]
+authors = [
+  { name="Surasak Choedpasuporn", email="surasak.cho@gmail.com" },
+]
+description = "A swiss-knife Data Science package for python"
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+# Add any libraries you usually need here
+dependencies = [
+    "pandas",
+    "numpy",
+]
+
+[project.urls]
+Homepage = "https://github.com/surasakcho/zkyhaxpy"
+
+[tool.setuptools]
+# This replaces find_packages()
+packages = ["zkyhaxpy", "zkyhaxpy.misc"]
+
+[tool.setuptools.dynamic]
+# This tells setuptools where to find the version string
+version = {attr = "zkyhaxpy.__init__.__version__"}
