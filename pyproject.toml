@@ -26,9 +26,20 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/surasakcho/zkyhaxpy"
 
+
 [tool.setuptools]
-# This replaces find_packages()
-packages = ["zkyhaxpy", "zkyhaxpy.misc"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+# Note the "*" to include all files in those specific subdirectories
+"zkyhaxpy" = [
+    "data/*", 
+    "misc/*.py"
+]
+
 
 [tool.setuptools.dynamic]
 # This tells setuptools where to find the version string
