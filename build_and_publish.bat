@@ -24,7 +24,7 @@ if %errorlevel% neq 0 (
 
 :: 3. Check with Twine
 echo [3/4] Checking distribution with Twine...
-twine check dist/*
+python -m twine check dist/*
 if %errorlevel% neq 0 (
     echo.
     echo ERROR: Twine check failed!
@@ -33,9 +33,11 @@ if %errorlevel% neq 0 (
 )
 
 :: 4. Upload
+echo Press any button to continue uploading
+pause
 echo [4/4] Uploading to PyPI...
 echo Note: If you haven't set up .pypirc, enter __token__ as username.
-twine upload dist/*
+python -m twine upload --repository pypi dist/*
 
 echo.
 echo ====================================================

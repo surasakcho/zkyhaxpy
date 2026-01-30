@@ -36,7 +36,7 @@ where = ["."]
 [tool.setuptools.package-data]
 # Note the "*" to include all files in those specific subdirectories
 "zkyhaxpy" = [
-    "datapackage/*", 
+    "data_package/*", 
     "misc/*.py"
 ]
 
